@@ -12,7 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as AppProfileRouteImport } from './routes/_app.profile'
+import { Route as AppMessagesRouteImport } from './routes/_app.messages'
 import { Route as AppCameraRouteImport } from './routes/_app.camera'
+import { Route as AppMessagesIndexRouteImport } from './routes/_app.messages.index'
+import { Route as AppMessagesUserIdRouteImport } from './routes/_app.messages.$userId'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -28,35 +32,82 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMessagesRoute = AppMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCameraRoute = AppCameraRouteImport.update({
   id: '/camera',
   path: '/camera',
   getParentRoute: () => AppRoute,
+} as any)
+const AppMessagesIndexRoute = AppMessagesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppMessagesRoute,
+} as any)
+const AppMessagesUserIdRoute = AppMessagesUserIdRouteImport.update({
+  id: '/$userId',
+  path: '/$userId',
+  getParentRoute: () => AppMessagesRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
   '/camera': typeof AppCameraRoute
+  '/messages': typeof AppMessagesRouteWithChildren
+  '/profile': typeof AppProfileRoute
+  '/messages/$userId': typeof AppMessagesUserIdRoute
+  '/messages/': typeof AppMessagesIndexRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/camera': typeof AppCameraRoute
+  '/profile': typeof AppProfileRoute
   '/': typeof AppIndexRoute
+  '/messages/$userId': typeof AppMessagesUserIdRoute
+  '/messages': typeof AppMessagesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
   '/_app/camera': typeof AppCameraRoute
+  '/_app/messages': typeof AppMessagesRouteWithChildren
+  '/_app/profile': typeof AppProfileRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/messages/$userId': typeof AppMessagesUserIdRoute
+  '/_app/messages/': typeof AppMessagesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/camera'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/camera'
+    | '/messages'
+    | '/profile'
+    | '/messages/$userId'
+    | '/messages/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/camera' | '/'
-  id: '__root__' | '/_app' | '/auth' | '/_app/camera' | '/_app/'
+  to: '/auth' | '/camera' | '/profile' | '/' | '/messages/$userId' | '/messages'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/auth'
+    | '/_app/camera'
+    | '/_app/messages'
+    | '/_app/profile'
+    | '/_app/'
+    | '/_app/messages/$userId'
+    | '/_app/messages/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +138,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/messages': {
+      id: '/_app/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AppMessagesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/camera': {
       id: '/_app/camera'
       path: '/camera'
@@ -94,16 +159,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCameraRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/messages/': {
+      id: '/_app/messages/'
+      path: '/'
+      fullPath: '/messages/'
+      preLoaderRoute: typeof AppMessagesIndexRouteImport
+      parentRoute: typeof AppMessagesRoute
+    }
+    '/_app/messages/$userId': {
+      id: '/_app/messages/$userId'
+      path: '/$userId'
+      fullPath: '/messages/$userId'
+      preLoaderRoute: typeof AppMessagesUserIdRouteImport
+      parentRoute: typeof AppMessagesRoute
+    }
   }
 }
 
+interface AppMessagesRouteChildren {
+  AppMessagesUserIdRoute: typeof AppMessagesUserIdRoute
+  AppMessagesIndexRoute: typeof AppMessagesIndexRoute
+}
+
+const AppMessagesRouteChildren: AppMessagesRouteChildren = {
+  AppMessagesUserIdRoute: AppMessagesUserIdRoute,
+  AppMessagesIndexRoute: AppMessagesIndexRoute,
+}
+
+const AppMessagesRouteWithChildren = AppMessagesRoute._addFileChildren(
+  AppMessagesRouteChildren,
+)
+
 interface AppRouteChildren {
   AppCameraRoute: typeof AppCameraRoute
+  AppMessagesRoute: typeof AppMessagesRouteWithChildren
+  AppProfileRoute: typeof AppProfileRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppCameraRoute: AppCameraRoute,
+  AppMessagesRoute: AppMessagesRouteWithChildren,
+  AppProfileRoute: AppProfileRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
