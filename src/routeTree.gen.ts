@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
@@ -18,6 +19,11 @@ import { Route as AppCameraRouteImport } from './routes/_app.camera'
 import { Route as AppMessagesIndexRouteImport } from './routes/_app.messages.index'
 import { Route as AppMessagesUserIdRouteImport } from './routes/_app.messages.$userId'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -61,6 +67,7 @@ const AppMessagesUserIdRoute = AppMessagesUserIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/camera': typeof AppCameraRoute
   '/messages': typeof AppMessagesRouteWithChildren
   '/profile': typeof AppProfileRoute
@@ -69,6 +76,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/camera': typeof AppCameraRoute
   '/profile': typeof AppProfileRoute
   '/': typeof AppIndexRoute
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_app/camera': typeof AppCameraRoute
   '/_app/messages': typeof AppMessagesRouteWithChildren
   '/_app/profile': typeof AppProfileRoute
@@ -91,17 +100,26 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/sitemap.xml'
     | '/camera'
     | '/messages'
     | '/profile'
     | '/messages/$userId'
     | '/messages/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/camera' | '/profile' | '/' | '/messages/$userId' | '/messages'
+  to:
+    | '/auth'
+    | '/sitemap.xml'
+    | '/camera'
+    | '/profile'
+    | '/'
+    | '/messages/$userId'
+    | '/messages'
   id:
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/sitemap.xml'
     | '/_app/camera'
     | '/_app/messages'
     | '/_app/profile'
@@ -113,10 +131,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -209,6 +235,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
