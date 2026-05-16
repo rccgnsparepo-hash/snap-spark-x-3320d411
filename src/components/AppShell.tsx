@@ -1,27 +1,18 @@
-import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { Home, Camera, MessageCircle, User, LogOut } from "lucide-react";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import { Home, Camera, MessageCircle, User, LogOut, Sparkles, BookOpen } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useEffect } from "react";
 
 const tabs = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/camera", icon: Camera, label: "Camera" },
+  { to: "/challenges", icon: Sparkles, label: "Daily" },
   { to: "/messages", icon: MessageCircle, label: "DMs" },
   { to: "/profile", icon: User, label: "Me" },
 ] as const;
 
 export function AppShell() {
   const { pathname } = useLocation();
-  const { session, loading, profile, signOut } = useAuth();
-  const nav = useNavigate();
-
-  useEffect(() => {
-    if (!loading && !session) nav({ to: "/auth" });
-  }, [loading, session, nav]);
-
-  if (loading || !session) {
-    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">…</div>;
-  }
+  const { profile, signOut } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -40,6 +31,9 @@ export function AppShell() {
               </Link>
             );
           })}
+          <Link to="/comics" className="flex items-center gap-4 px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60">
+            <BookOpen className="w-6 h-6" /> Comics
+          </Link>
         </nav>
         <div className="mt-auto flex items-center gap-3 p-3 rounded-2xl border border-border">
           <div className="w-10 h-10 rounded-full bg-snap text-snap-foreground grid place-items-center font-bold">
@@ -62,7 +56,7 @@ export function AppShell() {
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/90 backdrop-blur">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {tabs.map((t) => {
             const active = pathname === t.to || (t.to !== "/" && pathname.startsWith(t.to));
             return (

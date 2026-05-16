@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { StoriesBar, type StoryRow } from "@/components/StoriesBar";
@@ -6,32 +5,18 @@ import { StoryViewer } from "@/components/StoryViewer";
 import { Composer } from "@/components/Composer";
 import { PostCard, type PostRow } from "@/components/PostCard";
 
-export const Route = createFileRoute("/_app/")({
-  head: () => ({ meta: [{ title: "Home — Flick" }] }),
-  component: Home,
-});
-
-function Home() {
+export default function HomePage() {
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [story, setStory] = useState<StoryRow | null>(null);
-
   const load = async () => {
-    const { data } = await supabase
-      .from("posts")
-      .select("id, content, image_url, created_at, author:profiles!posts_author_id_fkey (id, handle, display_name, avatar_url)")
-      .order("created_at", { ascending: false })
-      .limit(50);
+    const { data } = await supabase.from("posts").select("id, content, image_url, media_url, media_type, created_at, author:profiles!posts_author_id_fkey (id, handle, display_name, avatar_url)").order("created_at", { ascending: false }).limit(50);
     setPosts((data ?? []) as unknown as PostRow[]);
   };
-
   useEffect(() => {
     load();
-    const ch = supabase.channel("posts-feed")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" }, load)
-      .subscribe();
+    const ch = supabase.channel("posts-feed").on("postgres_changes", { event: "*", schema: "public", table: "posts" }, load).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
-
   return (
     <>
       <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border px-4 py-3">
@@ -40,9 +25,7 @@ function Home() {
       <StoriesBar onView={setStory} />
       <Composer onPosted={load} />
       <div>
-        {posts.length === 0 && (
-          <div className="text-center py-20 text-muted-foreground">No flicks yet. Be the first.</div>
-        )}
+        {posts.length === 0 && <div className="text-center py-20 text-muted-foreground">No flicks yet. Be the first.</div>}
         {posts.map((p) => <PostCard key={p.id} post={p} />)}
       </div>
       <StoryViewer story={story} onClose={() => setStory(null)} />
