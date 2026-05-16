@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, X, Mic, Video, Music } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -10,26 +10,57 @@ export function Composer({ onPosted }: { onPosted: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [recording, setRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const imgRef = useRef<HTMLInputElement>(null);
+  const vidRef = useRef<HTMLInputElement>(null);
+  const audRef = useRef<HTMLInputElement>(null);
 
-  const pick = (f: File) => {
+  const pick = (f: File, maxMb: number) => {
+    if (f.size > maxMb * 1024 * 1024) { toast.error(`File over ${maxMb}MB`); return; }
     setFile(f);
     setPreview(URL.createObjectURL(f));
+  };
+
+  const recordVoice = async () => {
+    if (recording) { recorderRef.current?.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+      rec.ondataavailable = (e) => chunks.push(e.data);
+      rec.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const f = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+        setFile(f); setPreview(URL.createObjectURL(f));
+        setRecording(false);
+      };
+      rec.start();
+      recorderRef.current = rec;
+      setRecording(true);
+      setTimeout(() => { if (rec.state === "recording") rec.stop(); }, 120000);
+    } catch { toast.error("Microphone denied"); }
   };
 
   const submit = async () => {
     if (!user || (!text.trim() && !file)) return;
     setBusy(true);
     try {
+      let media_url: string | null = null;
+      let media_type = "text";
       let image_url: string | null = null;
       if (file) {
         const path = `${user.id}/${crypto.randomUUID()}-${file.name}`;
-        const { error: upErr } = await supabase.storage.from("media").upload(path, file);
+        const { error: upErr } = await supabase.storage.from("media").upload(path, file, { contentType: file.type });
         if (upErr) throw upErr;
-        image_url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
+        media_url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
+        if (file.type.startsWith("image/")) { media_type = "image"; image_url = media_url; }
+        else if (file.type.startsWith("video/")) media_type = "video";
+        else if (file.type.startsWith("audio/")) media_type = "audio";
       }
       const { error } = await supabase.from("posts").insert({
-        author_id: user.id, content: text.trim() || "", image_url,
+        author_id: user.id, content: text.trim() || "", image_url, media_url, media_type,
       });
       if (error) throw error;
       setText(""); setFile(null); setPreview(null);
@@ -38,38 +69,40 @@ export function Composer({ onPosted }: { onPosted: () => void }) {
     finally { setBusy(false); }
   };
 
+  const isImage = file?.type.startsWith("image/");
+  const isVideo = file?.type.startsWith("video/");
+  const isAudio = file?.type.startsWith("audio/");
+
   return (
     <div className="border-b border-border p-4 flex gap-3">
       <div className="w-11 h-11 rounded-full bg-snap text-snap-foreground grid place-items-center font-bold shrink-0">
         {profile?.display_name?.[0]?.toUpperCase() ?? "?"}
       </div>
       <div className="flex-1">
-        <textarea
-          value={text} onChange={(e) => setText(e.target.value.slice(0, 280))}
-          placeholder="What's flickering?"
-          className="w-full bg-transparent text-xl placeholder:text-muted-foreground resize-none focus:outline-none min-h-[60px]"
-        />
+        <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 280))} placeholder="What's flickering?"
+          className="w-full bg-transparent text-xl placeholder:text-muted-foreground resize-none focus:outline-none min-h-[60px]" />
         {preview && (
-          <div className="relative inline-block">
-            <img src={preview} alt="" className="rounded-2xl max-h-72 border border-border" />
-            <button onClick={() => { setFile(null); setPreview(null); }}
-              className="absolute top-2 right-2 bg-black/60 backdrop-blur p-1.5 rounded-full">
-              <X className="w-4 h-4" />
-            </button>
+          <div className="relative inline-block max-w-full">
+            {isImage && <img src={preview} alt="" className="rounded-2xl max-h-72 border border-border" />}
+            {isVideo && <video src={preview} controls className="rounded-2xl max-h-72 border border-border" />}
+            {isAudio && <audio src={preview} controls className="w-full" />}
+            <button onClick={() => { setFile(null); setPreview(null); }} className="absolute top-2 right-2 bg-black/60 backdrop-blur p-1.5 rounded-full"><X className="w-4 h-4" /></button>
           </div>
         )}
         <div className="flex items-center justify-between mt-3">
-          <button onClick={() => inputRef.current?.click()} className="p-2 rounded-full hover:bg-secondary text-primary">
-            <ImagePlus className="w-5 h-5" />
-          </button>
-          <input ref={inputRef} type="file" accept="image/*" hidden
-            onChange={(e) => e.target.files?.[0] && pick(e.target.files[0])} />
+          <div className="flex gap-1">
+            <button onClick={() => imgRef.current?.click()} className="p-2 rounded-full hover:bg-secondary text-primary"><ImagePlus className="w-5 h-5" /></button>
+            <button onClick={() => vidRef.current?.click()} className="p-2 rounded-full hover:bg-secondary text-primary"><Video className="w-5 h-5" /></button>
+            <button onClick={() => audRef.current?.click()} className="p-2 rounded-full hover:bg-secondary text-primary"><Music className="w-5 h-5" /></button>
+            <button onClick={recordVoice} className={`p-2 rounded-full hover:bg-secondary ${recording ? "text-red-500 animate-pulse" : "text-primary"}`}><Mic className="w-5 h-5" /></button>
+            <input ref={imgRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && pick(e.target.files[0], 10)} />
+            <input ref={vidRef} type="file" accept="video/*" hidden onChange={(e) => e.target.files?.[0] && pick(e.target.files[0], 50)} />
+            <input ref={audRef} type="file" accept="audio/*" hidden onChange={(e) => e.target.files?.[0] && pick(e.target.files[0], 25)} />
+          </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">{280 - text.length}</span>
             <button disabled={busy || (!text.trim() && !file)} onClick={submit}
-              className="px-5 py-2 rounded-full bg-primary text-primary-foreground font-bold disabled:opacity-50 transition hover:brightness-110">
-              Flick
-            </button>
+              className="px-5 py-2 rounded-full bg-primary text-primary-foreground font-bold disabled:opacity-50 transition hover:brightness-110">Flick</button>
           </div>
         </div>
       </div>
