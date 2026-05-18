@@ -1,9 +1,12 @@
-import { Heart, MessageCircle, Repeat2, Send, X } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, Send, X, Share2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNowStrict } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { Avatar } from "./Avatar";
+import { Reactions } from "./Reactions";
+import { ShareSheet } from "./ShareSheet";
 
 export type PostRow = {
   id: string;
@@ -27,6 +30,7 @@ export function PostCard({ post }: { post: PostRow }) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [draft, setDraft] = useState("");
+  const [shareOpen, setShareOpen] = useState(false);
 
   const refreshCounts = async () => {
     const [likes, reshares, comments] = await Promise.all([
@@ -93,9 +97,7 @@ export function PostCard({ post }: { post: PostRow }) {
 
   return (
     <article className="px-4 py-3 border-b border-border hover:bg-secondary/20 transition flex gap-3">
-      <div className="w-11 h-11 rounded-full bg-snap text-snap-foreground grid place-items-center font-bold shrink-0">
-        {post.author?.display_name?.[0]?.toUpperCase() ?? "?"}
-      </div>
+      <Avatar url={post.author?.avatar_url} name={post.author?.display_name} size={44} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-sm">
           <span className="font-bold truncate">{post.author?.display_name ?? "Unknown"}</span>
@@ -113,7 +115,7 @@ export function PostCard({ post }: { post: PostRow }) {
         {mediaSrc && (post.media_type === "image" || (!post.media_type && post.image_url)) && (
           <img src={mediaSrc} alt="" className="mt-3 rounded-2xl border border-border max-h-[500px] w-full object-cover" />
         )}
-        <div className="flex items-center gap-8 mt-3 text-muted-foreground text-sm">
+        <div className="flex items-center gap-6 mt-3 text-muted-foreground text-sm flex-wrap">
           <button onClick={openComments} className="flex items-center gap-1.5 hover:text-primary transition">
             <MessageCircle className="w-4 h-4" /> {commentCount > 0 && commentCount}
           </button>
@@ -123,8 +125,13 @@ export function PostCard({ post }: { post: PostRow }) {
           <button onClick={toggleLike} className={`flex items-center gap-1.5 transition ${liked ? "text-rose-500" : "hover:text-rose-500"}`}>
             <Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} /> {likeCount > 0 && likeCount}
           </button>
+          <Reactions postId={post.id} />
+          <button onClick={() => setShareOpen(true)} className="flex items-center gap-1.5 hover:text-snap transition ml-auto">
+            <Share2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} postId={post.id} postPreview={post.content || "Check this flick"} />
       <AnimatePresence>
         {showComments && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowComments(false)}

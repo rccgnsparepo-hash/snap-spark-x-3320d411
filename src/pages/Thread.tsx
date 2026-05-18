@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+import { Avatar } from "@/components/Avatar";
+import { VoiceMessage } from "@/components/VoiceMessage";
 
 type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string; read_at: string | null };
 type Profile = { id: string; handle: string; display_name: string; avatar_url: string | null };
@@ -94,7 +96,7 @@ export default function ThreadPage() {
     <div className="flex flex-col h-screen relative" style={bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2">
         <Link to="/messages" className="md:hidden p-2 -ml-2"><ArrowLeft /></Link>
-        <div className="w-9 h-9 rounded-full bg-snap text-snap-foreground grid place-items-center font-bold">{other?.display_name?.[0]?.toUpperCase() ?? "?"}</div>
+        <Avatar url={other?.avatar_url} name={other?.display_name} size={36} />
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">{other?.display_name ?? "…"}</div>
           <div className="text-[11px] text-snap flex items-center gap-1"><Timer className="w-3 h-3" /> Disappears in 24h</div>
@@ -111,7 +113,7 @@ export default function ThreadPage() {
             return (
               <motion.div key={m.id} layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[75%] px-4 py-2 rounded-3xl ${mine ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary rounded-bl-md"}`}>
-                  {m.media_type === "audio" && m.media_url ? <audio src={m.media_url} controls className="max-w-full" />
+                  {m.media_type === "audio" && m.media_url ? <VoiceMessage src={m.media_url} mine={mine} />
                     : m.media_url ? <a href={m.media_url} target="_blank" rel="noreferrer" className="underline flex items-center gap-2"><Paperclip className="w-3 h-3" />{m.content}</a>
                     : m.content}
                 </div>
