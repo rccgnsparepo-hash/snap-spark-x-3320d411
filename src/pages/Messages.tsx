@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { Search, MessageCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { Avatar } from "@/components/Avatar";
 
 type Profile = { id: string; handle: string; display_name: string; avatar_url: string | null };
 
@@ -50,7 +51,7 @@ export default function MessagesPage() {
           {filtered.map((p) => (
             <li key={p.id}>
               <Link to={`/messages/${p.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 border-b border-border">
-                <div className="w-11 h-11 rounded-full bg-snap text-snap-foreground grid place-items-center font-bold">{p.display_name[0]?.toUpperCase()}</div>
+                <Avatar url={p.avatar_url} name={p.display_name} size={44} />
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold truncate">{p.display_name}</div>
                   <div className="text-xs text-muted-foreground truncate">@{p.handle}</div>

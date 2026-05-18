@@ -1,6 +1,8 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Home, Camera, MessageCircle, User, LogOut, Sparkles, BookOpen } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { Avatar } from "./Avatar";
+import { AnimatedBg } from "./AnimatedBg";
 
 const tabs = [
   { to: "/", icon: Home, label: "Home" },
@@ -15,7 +17,8 @@ export function AppShell() {
   const { profile, signOut } = useAuth();
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
+    <div className="min-h-screen flex flex-col md:flex-row relative">
+      <AnimatedBg />
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border p-6 sticky top-0 h-screen">
         <Link to="/" className="font-display text-3xl mb-10 tracking-tight">flick<span className="text-snap">.</span></Link>
@@ -36,9 +39,7 @@ export function AppShell() {
           </Link>
         </nav>
         <div className="mt-auto flex items-center gap-3 p-3 rounded-2xl border border-border">
-          <div className="w-10 h-10 rounded-full bg-snap text-snap-foreground grid place-items-center font-bold">
-            {profile?.display_name?.[0]?.toUpperCase() ?? "?"}
-          </div>
+          <Avatar url={profile?.avatar_url} name={profile?.display_name} size={40} />
           <div className="flex-1 min-w-0">
             <div className="font-semibold truncate text-sm">{profile?.display_name}</div>
             <div className="text-xs text-muted-foreground truncate">@{profile?.handle}</div>
