@@ -286,6 +286,27 @@ export type Database = {
         }
         Relationships: []
       }
+      reactions: {
+        Row: {
+          created_at: string
+          emoji: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          emoji: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          emoji?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reshares: {
         Row: {
           created_at: string
