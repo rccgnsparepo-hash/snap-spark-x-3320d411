@@ -18,7 +18,12 @@ export type PostRow = {
   author: { id: string; handle: string; display_name: string; avatar_url: string | null } | null;
 };
 
-type Comment = { id: string; content: string; created_at: string; author_id: string };
+type Comment = {
+  id: string; content: string; created_at: string; author_id: string;
+  author: { handle: string; display_name: string; avatar_url: string | null } | null;
+};
+
+const COMMENT_SELECT = "id, content, created_at, author_id, author:profiles!comments_author_id_fkey (handle, display_name, avatar_url)";
 
 export function PostCard({ post }: { post: PostRow }) {
   const { user } = useAuth();
@@ -80,8 +85,8 @@ export function PostCard({ post }: { post: PostRow }) {
 
   const openComments = async () => {
     setShowComments(true);
-    const { data } = await supabase.from("comments").select("*").eq("post_id", post.id).order("created_at", { ascending: true });
-    setComments((data ?? []) as Comment[]);
+    const { data } = await supabase.from("comments").select(COMMENT_SELECT).eq("post_id", post.id).order("created_at", { ascending: true });
+    setComments((data ?? []) as unknown as Comment[]);
   };
 
   const sendComment = async () => {
@@ -89,8 +94,8 @@ export function PostCard({ post }: { post: PostRow }) {
     const c = draft.trim();
     setDraft("");
     await supabase.from("comments").insert({ post_id: post.id, author_id: user.id, content: c });
-    const { data } = await supabase.from("comments").select("*").eq("post_id", post.id).order("created_at", { ascending: true });
-    setComments((data ?? []) as Comment[]);
+    const { data } = await supabase.from("comments").select(COMMENT_SELECT).eq("post_id", post.id).order("created_at", { ascending: true });
+    setComments((data ?? []) as unknown as Comment[]);
   };
 
   const mediaSrc = post.media_url ?? post.image_url;
@@ -145,9 +150,16 @@ export function PostCard({ post }: { post: PostRow }) {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {comments.length === 0 && <p className="text-center text-muted-foreground text-sm">No comments yet.</p>}
                 {comments.map((c) => (
-                  <div key={c.id} className="text-sm">
-                    <p className="text-muted-foreground text-xs">{formatDistanceToNowStrict(new Date(c.created_at))} ago</p>
-                    <p>{c.content}</p>
+                  <div key={c.id} className="flex gap-2.5 text-sm">
+                    <Avatar url={c.author?.avatar_url} name={c.author?.display_name} size={32} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold truncate">{c.author?.display_name ?? "User"}</span>
+                        <span className="text-muted-foreground text-xs">@{c.author?.handle}</span>
+                        <span className="text-muted-foreground text-xs">· {formatDistanceToNowStrict(new Date(c.created_at))}</span>
+                      </div>
+                      <p className="break-words">{c.content}</p>
+                    </div>
                   </div>
                 ))}
               </div>
