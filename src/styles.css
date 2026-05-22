@@ -30,7 +30,7 @@
   --color-ring: var(--ring);
   --color-snap: var(--snap);
   --color-snap-foreground: var(--snap-foreground);
-  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-display: "Syne", system-ui, sans-serif;
 }
 
 :root {
@@ -42,7 +42,7 @@
   --card-foreground: oklch(0.98 0 0);
   --popover: oklch(0.16 0.005 250);
   --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.7 0.18 240);          /* X blue #1D9BF0 */
+  --primary: oklch(0.88 0.18 130);         /* lime accent */
   --primary-foreground: oklch(0.98 0 0);
   --secondary: oklch(0.22 0.01 250);
   --secondary-foreground: oklch(0.98 0 0);
@@ -54,15 +54,15 @@
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.22 0.005 250);
   --input: oklch(0.2 0.005 250);
-  --ring: oklch(0.7 0.18 240);
-  --snap: oklch(0.95 0.2 100);             /* Snap yellow #FFFC00 */
+  --ring: oklch(0.88 0.18 130);
+  --snap: oklch(0.88 0.18 130);            /* lime #C5E863 */
   --snap-foreground: oklch(0.1 0 0);
-  --gradient-snap: linear-gradient(135deg, oklch(0.95 0.2 100), oklch(0.7 0.22 35), oklch(0.65 0.22 350));
-  --shadow-glow: 0 0 40px oklch(0.7 0.18 240 / 0.35);
-  --shadow-snap: 0 0 30px oklch(0.95 0.2 100 / 0.4);
+  --gradient-snap: linear-gradient(135deg, oklch(0.88 0.18 130), oklch(0.75 0.18 160), oklch(0.6 0.22 280));
+  --shadow-glow: 0 0 40px oklch(0.88 0.18 130 / 0.35);
+  --shadow-snap: 0 0 30px oklch(0.88 0.18 130 / 0.4);
 }
 
-@import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Inter:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap");
 
 @layer base {
   * { border-color: var(--color-border); }
