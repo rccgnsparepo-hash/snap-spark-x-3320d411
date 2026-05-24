@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
@@ -18,6 +19,22 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function IntroGate() {
+  const nav = useNavigate();
+  const { pathname } = useLocation();
+  const [checked, setChecked] = useState(false);
+  useEffect(() => {
+    if (checked) return;
+    const seen = sessionStorage.getItem("flick:intro");
+    if (!seen && pathname !== "/intro") {
+      sessionStorage.setItem("flick:intro", "1");
+      nav("/intro", { replace: true });
+    }
+    setChecked(true);
+  }, [checked, pathname, nav]);
+  return null;
+}
+
 function Protected({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   if (loading) {
@@ -32,6 +49,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+          <IntroGate />
           <Routes>
             <Route path="/intro" element={<IntroPage />} />
             <Route path="/auth" element={<AuthPage />} />
