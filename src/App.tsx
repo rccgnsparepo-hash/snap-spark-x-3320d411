@@ -13,6 +13,7 @@ import ChallengesPage from "@/pages/Challenges";
 import ComicsPage from "@/pages/Comics";
 import ComicReaderPage from "@/pages/ComicReader";
 import AuthPage from "@/pages/Auth";
+import IntroPage from "@/pages/Intro";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <Routes>
+            <Route path="/intro" element={<IntroPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route element={<Protected><AppShell /></Protected>}>
               <Route path="/" element={<HomePage />} />

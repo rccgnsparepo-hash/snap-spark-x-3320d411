@@ -3,6 +3,7 @@ import { Home, Camera, MessageCircle, User, LogOut, Sparkles, BookOpen } from "l
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "./Avatar";
 import { AnimatedBg } from "./AnimatedBg";
+import { AnimatePresence, motion } from "framer-motion";
 
 const tabs = [
   { to: "/", icon: Home, label: "Home" },
@@ -52,23 +53,45 @@ export function AppShell() {
 
       {/* Main */}
       <main className="flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-screen pb-24 md:pb-0">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -18 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/90 backdrop-blur">
-        <div className="grid grid-cols-5">
+        <motion.div
+          initial={{ y: 60 }}
+          animate={{ y: 0 }}
+          transition={{ delay: 0.1, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="grid grid-cols-5"
+        >
           {tabs.map((t) => {
             const active = pathname === t.to || (t.to !== "/" && pathname.startsWith(t.to));
             return (
               <Link key={t.to} to={t.to}
-                className={`flex flex-col items-center gap-1 py-3 ${active ? "text-snap" : "text-muted-foreground"}`}>
-                <t.icon className="w-6 h-6" />
+                className={`relative flex flex-col items-center gap-1 py-3 transition ${active ? "text-snap" : "text-muted-foreground"}`}>
+                {active && (
+                  <motion.span
+                    layoutId="navdot"
+                    className="absolute top-1 w-8 h-8 rounded-full bg-snap/15"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <t.icon className="w-6 h-6 relative" />
                 <span className="text-[10px] uppercase tracking-wider">{t.label}</span>
               </Link>
             );
           })}
-        </div>
+        </motion.div>
       </nav>
     </div>
   );
