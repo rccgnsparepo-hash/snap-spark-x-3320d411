@@ -60,6 +60,9 @@
   --gradient-snap: linear-gradient(135deg, oklch(0.88 0.18 130), oklch(0.75 0.18 160), oklch(0.6 0.22 280));
   --shadow-glow: 0 0 40px oklch(0.88 0.18 130 / 0.35);
   --shadow-snap: 0 0 30px oklch(0.88 0.18 130 / 0.4);
+  /* Warm gold/sand accent used in split-screen surfaces */
+  --warm: oklch(0.86 0.07 80);
+  --warm-deep: oklch(0.72 0.12 70);
 }
 
 @import url("https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap");
@@ -81,3 +84,28 @@
 /* Hide scrollbars on horizontal scrollers */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+
+/* Split-screen surfaces (image 3 inspiration) */
+.surface-warm {
+  background: linear-gradient(135deg, var(--warm) 0%, var(--warm-deep) 100%);
+  color: oklch(0.15 0.02 70);
+}
+.surface-noir {
+  background: linear-gradient(135deg, #000 0%, oklch(0.14 0.005 250) 100%);
+}
+
+/* NFT-style card (image 1 inspiration) */
+.card-glass {
+  background: linear-gradient(160deg, oklch(0.22 0.01 250 / 0.85), oklch(0.14 0.005 250 / 0.7));
+  backdrop-filter: blur(20px);
+  border: 1px solid oklch(1 0 0 / 0.06);
+}
+
+/* Lime tape highlight from AIWA reference */
+.tape-lime {
+  display: inline-block;
+  background: var(--snap);
+  color: var(--snap-foreground);
+  padding: 0 0.35em;
+  transform: skew(-4deg);
+}
