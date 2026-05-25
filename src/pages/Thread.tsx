@@ -54,11 +54,16 @@ export default function ThreadPage() {
   const uploadAndSend = async (f: File, type: "audio" | "file") => {
     if (!user || !userId) return;
     if (f.size > 25 * 1024 * 1024) { toast.error("File over 25MB"); return; }
+    const detected = type === "audio" ? "audio"
+      : f.type.startsWith("image/") ? "image"
+      : f.type.startsWith("video/") ? "video"
+      : f.type.startsWith("audio/") ? "audio"
+      : "file";
     const path = `${user.id}/dm-${crypto.randomUUID()}-${f.name}`;
     const { error: e1 } = await supabase.storage.from("media").upload(path, f, { contentType: f.type });
     if (e1) { toast.error(e1.message); return; }
     const url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
-    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: type });
+    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected });
   };
 
   const recordVoice = async () => {
@@ -111,11 +116,27 @@ export default function ThreadPage() {
           {msgs.map((m) => {
             const mine = m.sender_id === user?.id;
             return (
-              <motion.div key={m.id} layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[75%] px-4 py-2 rounded-3xl ${mine ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary rounded-bl-md"}`}>
-                  {m.media_type === "audio" && m.media_url ? <VoiceMessage src={m.media_url} mine={mine} />
-                    : m.media_url ? <a href={m.media_url} target="_blank" rel="noreferrer" className="underline flex items-center gap-2"><Paperclip className="w-3 h-3" />{m.content}</a>
-                    : m.content}
+              <motion.div key={m.id} layout initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ type: "spring", stiffness: 320, damping: 26 }} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[78%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
+                  {m.media_type === "audio" && m.media_url ? (
+                    <div className="px-3 py-2"><VoiceMessage src={m.media_url} mine={mine} /></div>
+                  ) : m.media_type === "image" && m.media_url ? (
+                    <a href={m.media_url} target="_blank" rel="noreferrer">
+                      <img src={m.media_url} alt={m.content ?? ""} className="max-h-72 w-full object-cover" />
+                    </a>
+                  ) : m.media_type === "video" && m.media_url ? (
+                    <video src={m.media_url} controls className="max-h-72 w-full bg-black" />
+                  ) : m.media_url ? (
+                    <a href={m.media_url} target="_blank" rel="noreferrer" download className="flex items-center gap-2 px-4 py-3 underline">
+                      <Paperclip className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{m.content || "file"}</span>
+                    </a>
+                  ) : (
+                    <div className={`px-4 py-2 ${mine ? "text-primary-foreground bg-primary/90" : ""}`}>{m.content}</div>
+                  )}
+                  {m.media_url && m.content && (m.media_type === "image" || m.media_type === "video") && (
+                    <div className="px-3 py-1.5 text-xs text-muted-foreground truncate">{m.content}</div>
+                  )}
                 </div>
               </motion.div>
             );
