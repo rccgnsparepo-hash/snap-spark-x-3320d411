@@ -3,6 +3,8 @@ import { ImagePlus, X, Mic, Video, Music } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { Avatar } from "./Avatar";
+import { UploadProgress, type UploadStage } from "./UploadProgress";
 
 export function Composer({ onPosted }: { onPosted: () => void }) {
   const { user, profile } = useAuth();
@@ -11,6 +13,7 @@ export function Composer({ onPosted }: { onPosted: () => void }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [stages, setStages] = useState<UploadStage[]>([]);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const imgRef = useRef<HTMLInputElement>(null);
   const vidRef = useRef<HTMLInputElement>(null);
@@ -46,26 +49,44 @@ export function Composer({ onPosted }: { onPosted: () => void }) {
   const submit = async () => {
     if (!user || (!text.trim() && !file)) return;
     setBusy(true);
+    const upStage: UploadStage = { label: file ? `Uploading ${file.name}` : "Preparing", progress: 5, status: "active" };
+    const postStage: UploadStage = { label: "Publishing flick", progress: 0, status: "active" };
+    setStages([upStage, postStage]);
     try {
       let media_url: string | null = null;
       let media_type = "text";
       let image_url: string | null = null;
       if (file) {
         const path = `${user.id}/${crypto.randomUUID()}-${file.name}`;
+        // simulated progress ticker (Supabase JS doesn't expose upload progress)
+        const ticker = setInterval(() => {
+          setStages((s) => s.map((x, i) => i === 0 && x.progress < 88 ? { ...x, progress: x.progress + 7 } : x));
+        }, 250);
         const { error: upErr } = await supabase.storage.from("media").upload(path, file, { contentType: file.type });
+        clearInterval(ticker);
         if (upErr) throw upErr;
+        setStages((s) => s.map((x, i) => i === 0 ? { ...x, progress: 100, status: "done" } : x));
         media_url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
         if (file.type.startsWith("image/")) { media_type = "image"; image_url = media_url; }
         else if (file.type.startsWith("video/")) media_type = "video";
         else if (file.type.startsWith("audio/")) media_type = "audio";
+      } else {
+        setStages((s) => s.map((x, i) => i === 0 ? { ...x, progress: 100, status: "done" } : x));
       }
+      setStages((s) => s.map((x, i) => i === 1 ? { ...x, progress: 60 } : x));
       const { error } = await supabase.from("posts").insert({
         author_id: user.id, content: text.trim() || "", image_url, media_url, media_type,
       });
       if (error) throw error;
+      setStages((s) => s.map((x, i) => i === 1 ? { ...x, progress: 100, status: "done" } : x));
+      setTimeout(() => setStages([]), 1800);
       setText(""); setFile(null); setPreview(null);
       onPosted();
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      setStages((s) => s.map((x) => x.status === "active" ? { ...x, status: "error", detail: "failed" } : x));
+      toast.error((e as Error).message);
+      setTimeout(() => setStages([]), 4000);
+    }
     finally { setBusy(false); }
   };
 
@@ -74,10 +95,8 @@ export function Composer({ onPosted }: { onPosted: () => void }) {
   const isAudio = file?.type.startsWith("audio/");
 
   return (
-    <div className="border-b border-border p-4 flex gap-3">
-      <div className="w-11 h-11 rounded-full bg-snap text-snap-foreground grid place-items-center font-bold shrink-0">
-        {profile?.display_name?.[0]?.toUpperCase() ?? "?"}
-      </div>
+    <div data-coach="coach-composer" className="border-b border-border p-4 flex gap-3">
+      <Avatar url={profile?.avatar_url} name={profile?.display_name} size={44} />
       <div className="flex-1">
         <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 280))} placeholder="What's flickering?"
           className="w-full bg-transparent text-xl placeholder:text-muted-foreground resize-none focus:outline-none min-h-[60px]" />
@@ -106,6 +125,7 @@ export function Composer({ onPosted }: { onPosted: () => void }) {
           </div>
         </div>
       </div>
+      <UploadProgress stages={stages} onDismiss={() => setStages([])} />
     </div>
   );
 }

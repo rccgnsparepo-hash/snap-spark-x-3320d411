@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Repeat2, Send, X, Share2 } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, Send, X, Share2, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Avatar } from "./Avatar";
 import { Reactions } from "./Reactions";
 import { ShareSheet } from "./ShareSheet";
+import { VoiceMessage } from "./VoiceMessage";
 
 export type PostRow = {
   id: string;
@@ -99,9 +100,17 @@ export function PostCard({ post }: { post: PostRow }) {
   };
 
   const mediaSrc = post.media_url ?? post.image_url;
+  const dlName = mediaSrc ? mediaSrc.split("/").pop() || "flick-media" : "flick-media";
 
   return (
-    <article className="px-4 py-3 border-b border-border hover:bg-secondary/20 transition flex gap-3">
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 260, damping: 26 }}
+      whileHover={{ y: -2 }}
+      className="px-4 py-3 border-b border-border hover:bg-secondary/20 transition flex gap-3"
+    >
       <Avatar url={post.author?.avatar_url} name={post.author?.display_name} size={44} />
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-sm">
@@ -111,14 +120,35 @@ export function PostCard({ post }: { post: PostRow }) {
           <span className="text-muted-foreground">{formatDistanceToNowStrict(new Date(post.created_at))}</span>
         </div>
         {post.content && <p className="mt-1 whitespace-pre-wrap break-words">{post.content}</p>}
-        {mediaSrc && post.media_type === "video" && (
-          <video src={mediaSrc} controls className="mt-3 rounded-2xl border border-border max-h-[500px] w-full" />
-        )}
-        {mediaSrc && post.media_type === "audio" && (
-          <audio src={mediaSrc} controls className="mt-3 w-full" />
-        )}
-        {mediaSrc && (post.media_type === "image" || (!post.media_type && post.image_url)) && (
-          <img src={mediaSrc} alt="" className="mt-3 rounded-2xl border border-border max-h-[500px] w-full object-cover" />
+        {mediaSrc && (
+          <div className="mt-3 relative group">
+            {post.media_type === "video" && (
+              <video
+                src={mediaSrc}
+                autoPlay muted loop playsInline controls
+                className="rounded-2xl border border-border max-h-[520px] w-full bg-black"
+              />
+            )}
+            {post.media_type === "audio" && (
+              <div className="rounded-2xl border border-border bg-card p-3">
+                <VoiceMessage src={mediaSrc} />
+              </div>
+            )}
+            {(post.media_type === "image" || (!post.media_type && post.image_url)) && (
+              <img src={mediaSrc} alt="" className="rounded-2xl border border-border max-h-[520px] w-full object-cover" loading="lazy" />
+            )}
+            <a
+              href={mediaSrc}
+              download={dlName}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition bg-background/80 backdrop-blur rounded-full p-2 border border-border"
+              aria-label="Download"
+            >
+              <Download className="w-4 h-4" />
+            </a>
+          </div>
         )}
         <div className="flex items-center gap-6 mt-3 text-muted-foreground text-sm flex-wrap">
           <button onClick={openComments} className="flex items-center gap-1.5 hover:text-primary transition">
@@ -171,6 +201,6 @@ export function PostCard({ post }: { post: PostRow }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </article>
+    </motion.article>
   );
 }
