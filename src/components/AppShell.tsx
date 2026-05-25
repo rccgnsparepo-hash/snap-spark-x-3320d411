@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { Avatar } from "./Avatar";
 import { AnimatedBg } from "./AnimatedBg";
 import { AnimatePresence, motion } from "framer-motion";
+import { CoachMark } from "./CoachMark";
 
 const tabs = [
   { to: "/", icon: Home, label: "Home" },
@@ -56,10 +57,11 @@ export function AppShell() {
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, x: 18 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -18 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, x: 24, rotateY: 6 }}
+            animate={{ opacity: 1, x: 0, rotateY: 0 }}
+            exit={{ opacity: 0, x: -24, rotateY: -6 }}
+            style={{ transformPerspective: 1200 }}
+            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
           >
             <Outlet />
           </motion.div>
@@ -77,7 +79,7 @@ export function AppShell() {
           {tabs.map((t) => {
             const active = pathname === t.to || (t.to !== "/" && pathname.startsWith(t.to));
             return (
-              <Link key={t.to} to={t.to}
+              <Link key={t.to} to={t.to} data-coach={t.to === "/messages" ? "coach-dm" : t.to === "/profile" ? "coach-profile" : undefined}
                 className={`relative flex flex-col items-center gap-1 py-3 transition ${active ? "text-snap" : "text-muted-foreground"}`}>
                 {active && (
                   <motion.span
@@ -86,13 +88,16 @@ export function AppShell() {
                     transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
-                <t.icon className="w-6 h-6 relative" />
+                <motion.div whileTap={{ scale: 0.85 }} animate={active ? { y: [0, -3, 0] } : { y: 0 }} transition={{ duration: 0.4 }}>
+                  <t.icon className="w-6 h-6 relative" />
+                </motion.div>
                 <span className="text-[10px] uppercase tracking-wider">{t.label}</span>
               </Link>
             );
           })}
         </motion.div>
       </nav>
+      <CoachMark />
     </div>
   );
 }
