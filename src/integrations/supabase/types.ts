@@ -174,6 +174,7 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string
+          delivered_at: string | null
           expires_at: string
           id: string
           media_type: string | null
@@ -185,6 +186,7 @@ export type Database = {
         Insert: {
           content?: string | null
           created_at?: string
+          delivered_at?: string | null
           expires_at?: string
           id?: string
           media_type?: string | null
@@ -196,6 +198,7 @@ export type Database = {
         Update: {
           content?: string | null
           created_at?: string
+          delivered_at?: string | null
           expires_at?: string
           id?: string
           media_type?: string | null
@@ -308,6 +311,24 @@ export type Database = {
         Relationships: []
       }
       reshares: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saved_posts: {
         Row: {
           created_at: string
           post_id: string
