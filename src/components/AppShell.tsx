@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, Camera, MessageCircle, User, LogOut, Sparkles, BookOpen } from "lucide-react";
+import { Home, MessageCircle, User, LogOut, BookOpen, Newspaper, Plus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "./Avatar";
 import { AnimatedBg } from "./AnimatedBg";
@@ -8,8 +8,8 @@ import { CoachMark } from "./CoachMark";
 
 const tabs = [
   { to: "/", icon: Home, label: "Home" },
-  { to: "/camera", icon: Camera, label: "Camera" },
-  { to: "/challenges", icon: Sparkles, label: "Daily" },
+  { to: "/news", icon: Newspaper, label: "News" },
+  { to: "/stories/new", icon: Plus, label: "Post", center: true },
   { to: "/messages", icon: MessageCircle, label: "DMs" },
   { to: "/profile", icon: User, label: "Me" },
 ] as const;
@@ -39,6 +39,9 @@ export function AppShell() {
           <Link to="/comics" className="flex items-center gap-4 px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60">
             <BookOpen className="w-6 h-6" /> Comics
           </Link>
+          <Link to="/camera" className="flex items-center gap-4 px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60">
+            <Plus className="w-6 h-6" /> Camera
+          </Link>
         </nav>
         <div className="mt-auto flex items-center gap-3 p-3 rounded-2xl border border-border">
           <Avatar url={profile?.avatar_url} name={profile?.display_name} size={40} />
@@ -53,7 +56,7 @@ export function AppShell() {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-screen pb-24 md:pb-0">
+      <main className="flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-screen pb-32 md:pb-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}
@@ -68,30 +71,40 @@ export function AppShell() {
         </AnimatePresence>
       </main>
 
-      {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/90 backdrop-blur">
+      {/* Mobile floating dock (image 1 inspired) */}
+      <nav className="md:hidden fixed bottom-4 inset-x-3 z-40 pointer-events-none">
         <motion.div
-          initial={{ y: 60 }}
-          animate={{ y: 0 }}
-          transition={{ delay: 0.1, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-          className="grid grid-cols-5"
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          className="pointer-events-auto mx-auto max-w-md card-glass rounded-[28px] px-2 py-1.5 grid grid-cols-5 items-center shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)]"
+          style={{ background: "linear-gradient(160deg, rgba(20,22,28,0.92), rgba(8,9,12,0.88))" }}
         >
           {tabs.map((t) => {
-            const active = pathname === t.to || (t.to !== "/" && pathname.startsWith(t.to));
+            const active = pathname === t.to || (t.to === "/stories/new" && pathname.startsWith("/stories")) || (t.to !== "/" && t.to !== "/stories/new" && pathname.startsWith(t.to));
+            if (t.center) {
+              return (
+                <Link key={t.to} to={t.to} className="flex flex-col items-center -mt-7 relative">
+                  <motion.div whileTap={{ scale: 0.9 }}
+                    className="w-14 h-14 rounded-full grid place-items-center shadow-[0_0_30px_rgba(180,255,80,0.5)]"
+                    style={{ background: "radial-gradient(circle at 30% 30%, oklch(0.95 0.18 130), oklch(0.7 0.22 150))" }}>
+                    <t.icon className="w-6 h-6 text-snap-foreground" />
+                  </motion.div>
+                  <span className="text-[9px] uppercase tracking-wider mt-1 text-foreground/80">{t.label}</span>
+                </Link>
+              );
+            }
             return (
               <Link key={t.to} to={t.to} data-coach={t.to === "/messages" ? "coach-dm" : t.to === "/profile" ? "coach-profile" : undefined}
-                className={`relative flex flex-col items-center gap-1 py-3 transition ${active ? "text-snap" : "text-muted-foreground"}`}>
-                {active && (
-                  <motion.span
-                    layoutId="navdot"
-                    className="absolute top-1 w-8 h-8 rounded-full bg-snap/15"
-                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <motion.div whileTap={{ scale: 0.85 }} animate={active ? { y: [0, -3, 0] } : { y: 0 }} transition={{ duration: 0.4 }}>
-                  <t.icon className="w-6 h-6 relative" />
+                className={`relative flex flex-col items-center gap-1 py-2.5 transition ${active ? "text-foreground" : "text-muted-foreground/70"}`}>
+                <motion.div whileTap={{ scale: 0.85 }}>
+                  <t.icon className={`w-5 h-5 ${active ? "drop-shadow-[0_0_8px_rgba(180,255,80,0.7)]" : ""}`} />
                 </motion.div>
-                <span className="text-[10px] uppercase tracking-wider">{t.label}</span>
+                <span className="text-[9px] uppercase tracking-wider">{t.label}</span>
+                {active && (
+                  <motion.span layoutId="navdot" className="absolute -bottom-0.5 w-6 h-1 rounded-full bg-snap"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }} />
+                )}
               </Link>
             );
           })}
