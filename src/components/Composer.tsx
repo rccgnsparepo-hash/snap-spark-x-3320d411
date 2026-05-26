@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { Avatar } from "./Avatar";
 import { UploadProgress, type UploadStage } from "./UploadProgress";
+import { notify } from "@/lib/notify";
 
 export function Composer({ onPosted }: { onPosted: () => void }) {
   const { user, profile } = useAuth();
@@ -79,6 +80,8 @@ export function Composer({ onPosted }: { onPosted: () => void }) {
       });
       if (error) throw error;
       setStages((s) => s.map((x, i) => i === 1 ? { ...x, progress: 100, status: "done" } : x));
+      notify({ kind: "post", message: text.trim().slice(0, 120) || "Posted a flick", actor: { id: user.id, handle: profile?.handle, display_name: profile?.display_name } });
+      toast.success("Flick posted");
       setTimeout(() => setStages([]), 1800);
       setText(""); setFile(null); setPreview(null);
       onPosted();
