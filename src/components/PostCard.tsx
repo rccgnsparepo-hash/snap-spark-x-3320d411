@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, Repeat2, Send, X, Share2, Download } from "lucide-react";
+import { Heart, MessageCircle, Repeat2, Send, X, Share2, Download, MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -8,6 +8,9 @@ import { Avatar } from "./Avatar";
 import { Reactions } from "./Reactions";
 import { ShareSheet } from "./ShareSheet";
 import { VoiceMessage } from "./VoiceMessage";
+import { PostActions } from "./PostActions";
+import { Link } from "react-router-dom";
+import { notify } from "@/lib/notify";
 
 export type PostRow = {
   id: string;
@@ -37,6 +40,7 @@ export function PostCard({ post }: { post: PostRow }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [draft, setDraft] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const refreshCounts = async () => {
     const [likes, reshares, comments] = await Promise.all([
@@ -70,6 +74,7 @@ export function PostCard({ post }: { post: PostRow }) {
     } else {
       setLiked(true); setLikeCount((c) => c + 1);
       await supabase.from("likes").insert({ user_id: user.id, post_id: post.id });
+      notify({ kind: "like", message: post.content?.slice(0, 80) ?? "", actor: { id: user.id }, data: { post_id: post.id } });
     }
   };
 
@@ -95,6 +100,7 @@ export function PostCard({ post }: { post: PostRow }) {
     const c = draft.trim();
     setDraft("");
     await supabase.from("comments").insert({ post_id: post.id, author_id: user.id, content: c });
+    notify({ kind: "comment", message: c.slice(0, 100), actor: { id: user.id }, data: { post_id: post.id } });
     const { data } = await supabase.from("comments").select(COMMENT_SELECT).eq("post_id", post.id).order("created_at", { ascending: true });
     setComments((data ?? []) as unknown as Comment[]);
   };
@@ -111,13 +117,20 @@ export function PostCard({ post }: { post: PostRow }) {
       whileHover={{ y: -2 }}
       className="px-4 py-3 border-b border-border hover:bg-secondary/20 transition flex gap-3"
     >
-      <Avatar url={post.author?.avatar_url} name={post.author?.display_name} size={44} />
+      <Link to={post.author?.handle ? `/u/${post.author.handle}` : "#"} onClick={(e) => e.stopPropagation()} className="shrink-0">
+        <Avatar url={post.author?.avatar_url} name={post.author?.display_name} size={44} />
+      </Link>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-sm">
-          <span className="font-bold truncate">{post.author?.display_name ?? "Unknown"}</span>
+          <Link to={post.author?.handle ? `/u/${post.author.handle}` : "#"} className="font-bold truncate hover:underline">
+            {post.author?.display_name ?? "Unknown"}
+          </Link>
           <span className="text-muted-foreground truncate">@{post.author?.handle}</span>
           <span className="text-muted-foreground">·</span>
           <span className="text-muted-foreground">{formatDistanceToNowStrict(new Date(post.created_at))}</span>
+          <button onClick={() => setActionsOpen(true)} className="ml-auto p-1 text-muted-foreground hover:text-foreground" aria-label="More">
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
         </div>
         {post.content && <p className="mt-1 whitespace-pre-wrap break-words">{post.content}</p>}
         {mediaSrc && (
@@ -143,7 +156,7 @@ export function PostCard({ post }: { post: PostRow }) {
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 focus:opacity-100 transition bg-background/80 backdrop-blur rounded-full p-2 border border-border"
+              className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition bg-background/80 backdrop-blur rounded-full p-2 border border-border"
               aria-label="Download"
             >
               <Download className="w-4 h-4" />
@@ -167,6 +180,7 @@ export function PostCard({ post }: { post: PostRow }) {
         </div>
       </div>
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} postId={post.id} postPreview={post.content || "Check this flick"} />
+      <PostActions postId={post.id} mediaUrl={mediaSrc} open={actionsOpen} onClose={() => setActionsOpen(false)} onShare={() => setShareOpen(true)} />
       <AnimatePresence>
         {showComments && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowComments(false)}
