@@ -6,6 +6,7 @@ import { Avatar } from "@/components/Avatar";
 import { LogOut, Camera, Grid3x3, Film, Bookmark, Settings, Edit3, Check, X, Share2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { ProfileSettings } from "@/components/ProfileSettings";
 
 export default function ProfilePage() {
   const { profile, user, signOut, refreshProfile } = useAuth();
@@ -16,6 +17,7 @@ export default function ProfilePage() {
   const [draftName, setDraftName] = useState("");
   const [draftBio, setDraftBio] = useState("");
   const [counts, setCounts] = useState({ posts: 0, likes: 0, reshares: 0 });
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -81,9 +83,10 @@ export default function ProfilePage() {
         <div className="flex items-center gap-3">
           <button aria-label="Share" className="text-muted-foreground hover:text-foreground"><Share2 className="w-5 h-5" /></button>
           <button onClick={signOut} aria-label="Sign out" className="text-muted-foreground hover:text-foreground"><LogOut className="w-5 h-5" /></button>
-          <button aria-label="Settings" className="text-muted-foreground hover:text-foreground"><Settings className="w-5 h-5" /></button>
+          <button aria-label="Settings" onClick={() => setSettingsOpen(true)} className="text-muted-foreground hover:text-foreground"><Settings className="w-5 h-5" /></button>
         </div>
       </header>
+      <ProfileSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* Split-screen hero: left noir identity, right warm stats */}
       <section className="grid grid-cols-5 min-h-[380px] overflow-hidden">

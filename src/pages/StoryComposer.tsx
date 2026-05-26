@@ -4,6 +4,7 @@ import { Upload, X, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 
 export default function StoryComposerPage() {
   const { user } = useAuth();
@@ -28,6 +29,7 @@ export default function StoryComposerPage() {
         if (error) throw error;
       }
       toast.success(`Posted ${files.length} ${files.length === 1 ? "story" : "stories"}`);
+      notify({ kind: "story", message: `${files.length} new ${files.length === 1 ? "story" : "stories"}`, actor: { id: user.id } });
       nav("/");
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };

@@ -17,7 +17,7 @@ export default function MessagesPage() {
 
   const loadUnread = async () => {
     if (!user) return;
-    const { data } = await supabase.from("messages").select("sender_id").eq("recipient_id", user.id).is("read_at", null).gt("expires_at", new Date().toISOString());
+    const { data } = await supabase.from("messages").select("sender_id, read_at").eq("recipient_id", user.id).is("read_at", null).gt("expires_at", new Date().toISOString());
     const counts: Record<string, number> = {};
     (data ?? []).forEach((m: { sender_id: string }) => { counts[m.sender_id] = (counts[m.sender_id] ?? 0) + 1; });
     setUnread(counts);
@@ -50,7 +50,8 @@ export default function MessagesPage() {
         <ul>
           {filtered.map((p) => (
             <li key={p.id}>
-              <Link to={`/messages/${p.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 border-b border-border">
+              <Link to={`/messages/${p.id}`} onClick={() => setUnread((u) => ({ ...u, [p.id]: 0 }))}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 border-b border-border">
                 <Avatar url={p.avatar_url} name={p.display_name} size={44} />
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold truncate">{p.display_name}</div>

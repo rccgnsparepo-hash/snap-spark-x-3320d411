@@ -16,6 +16,9 @@ import ComicReaderPage from "@/pages/ComicReader";
 import AuthPage from "@/pages/Auth";
 import IntroPage from "@/pages/Intro";
 import NotFound from "@/pages/NotFound";
+import NewsPage from "@/pages/News";
+import NewsReaderPage from "@/pages/NewsReader";
+import UserProfilePage from "@/pages/UserProfile";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +65,9 @@ export default function App() {
               </Route>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/challenges" element={<ChallengesPage />} />
+              <Route path="/news" element={<NewsPage />} />
+              <Route path="/news/read" element={<NewsReaderPage />} />
+              <Route path="/u/:handle" element={<UserProfilePage />} />
               <Route path="/comics" element={<ComicsPage />} />
               <Route path="/comics/:id" element={<ComicReaderPage />} />
             </Route>
