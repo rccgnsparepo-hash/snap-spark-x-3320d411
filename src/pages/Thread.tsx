@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Avatar } from "@/components/Avatar";
 import { VoiceMessage } from "@/components/VoiceMessage";
+import { notify } from "@/lib/notify";
 
 type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string; read_at: string | null };
 type Profile = { id: string; handle: string; display_name: string; avatar_url: string | null };
@@ -49,6 +50,7 @@ export default function ThreadPage() {
     const content = text.trim();
     setText("");
     await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content });
+    notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId } });
   };
 
   const uploadAndSend = async (f: File, type: "audio" | "file") => {
