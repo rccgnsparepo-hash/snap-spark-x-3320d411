@@ -6,13 +6,13 @@ import { AnimatedBg } from "./AnimatedBg";
 import { AnimatePresence, motion } from "framer-motion";
 import { CoachMark } from "./CoachMark";
 
-const tabs = [
+const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/news", icon: Newspaper, label: "News" },
   { to: "/stories/new", icon: Plus, label: "Post", center: true },
   { to: "/messages", icon: MessageCircle, label: "DMs" },
   { to: "/profile", icon: User, label: "Me" },
-] as const;
+];
 
 export function AppShell() {
   const { pathname } = useLocation();
