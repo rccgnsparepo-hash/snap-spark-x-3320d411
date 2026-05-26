@@ -30,33 +30,15 @@ Deno.serve(async (req) => {
     const who = body.actor?.display_name || body.actor?.handle || 'Someone';
     const title = body.title ?? defaultTitle(body.kind, who);
     const message = body.message ?? '';
-    const payload = {
-      kind: body.kind,
-      title,
-      message,
-      url: body.url ?? null,
-      actor: body.actor ?? null,
-      data: body.data ?? {},
-      at: new Date().toISOString(),
-    };
-
+    const payload = { kind: body.kind, title, message, url: body.url ?? null, actor: body.actor ?? null, data: body.data ?? {}, at: new Date().toISOString() };
     const tasks: Promise<unknown>[] = [];
-
     if (NOTIFY_WEBHOOK_URL) {
-      tasks.push(fetch(NOTIFY_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
+      tasks.push(fetch(NOTIFY_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
     }
-
     if (ONESIGNAL_APP_ID && ONESIGNAL_REST_API_KEY) {
       tasks.push(fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Basic ${ONESIGNAL_REST_API_KEY}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Basic ${ONESIGNAL_REST_API_KEY}` },
         body: JSON.stringify({
           app_id: ONESIGNAL_APP_ID,
           included_segments: ['All'],
@@ -67,16 +49,9 @@ Deno.serve(async (req) => {
         }),
       }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
     }
-
     const results = await Promise.all(tasks);
-    return new Response(JSON.stringify({ ok: true, sent: results.length }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    return new Response(JSON.stringify({ ok: true, sent: results.length }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+    return new Response(JSON.stringify({ error: (e as Error).message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
   }
 });
