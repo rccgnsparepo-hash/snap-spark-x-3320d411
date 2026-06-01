@@ -220,10 +220,8 @@ export function PostCard({ post }: { post: PostRow }) {
       </div>
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} postId={post.id} postPreview={post.content || "Check this flick"} />
       <PostActions postId={post.id} mediaUrl={mediaSrc} open={actionsOpen} onClose={() => setActionsOpen(false)} onShare={() => setShareOpen(true)} />
-      {/* Inline comment composer + list (Instagram-like) */}
-      </div>
-      </motion.article>
-      <AnimatePresence>
+    </motion.article>
+    <AnimatePresence>
         {showComments && (
           <CommentSheet
             comments={comments}
