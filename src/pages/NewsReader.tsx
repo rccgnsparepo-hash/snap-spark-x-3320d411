@@ -2,6 +2,27 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink, RotateCw } from "lucide-react";
 import { motion } from "framer-motion";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+
+function cleanReader(md: string): string {
+  // Strip Jina reader header block (Title:/URL Source:/Published Time:/Markdown Content:) and tag-only lines
+  let s = md.replace(/^Title:.*$/im, "")
+    .replace(/^URL Source:.*$/im, "")
+    .replace(/^Published Time:.*$/im, "")
+    .replace(/^Markdown Content:\s*/im, "")
+    .replace(/^Warning:.*$/gim, "")
+    .replace(/^Image \d+:.*$/gim, "")
+    .trim();
+  // Drop lines that are only hashtags / metadata-ish noise
+  const lines = s.split("\n").filter((l) => {
+    const t = l.trim();
+    if (!t) return true;
+    if (/^#\w[\w-]*(?:\s*,\s*#\w[\w-]*)*$/.test(t)) return false;
+    return true;
+  });
+  return lines.join("\n").trim();
+}
 
 export default function NewsReaderPage() {
   const [params] = useSearchParams();
@@ -18,7 +39,7 @@ export default function NewsReaderPage() {
       const res = await fetch(`https://r.jina.ai/${url}`, { headers: { "X-Return-Format": "markdown" } });
       if (!res.ok) throw new Error("Reader unavailable");
       const md = await res.text();
-      setContent(md);
+      setContent(cleanReader(md));
     } catch (e) {
       setError((e as Error).message);
     } finally { setLoading(false); }
@@ -38,12 +59,26 @@ export default function NewsReaderPage() {
         <a href={url} target="_blank" rel="noreferrer" className="p-2 text-muted-foreground" aria-label="Open original"><ExternalLink className="w-4 h-4" /></a>
       </header>
       <motion.article initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-        className="px-5 py-6 max-w-none pb-32">
-        <h1 className="font-display text-2xl mb-3">{title}</h1>
-        {loading && <p className="text-muted-foreground">Fetching clean reader view…</p>}
+        className="px-5 py-6 pb-40 max-w-2xl mx-auto">
+        <h1 className="font-display text-2xl mb-4 leading-tight">{title}</h1>
+        {loading && (
+          <div className="space-y-3 animate-pulse">
+            <div className="h-4 bg-secondary rounded w-3/4" />
+            <div className="h-4 bg-secondary rounded w-full" />
+            <div className="h-4 bg-secondary rounded w-5/6" />
+            <div className="h-48 bg-secondary rounded-2xl" />
+            <div className="h-4 bg-secondary rounded w-full" />
+          </div>
+        )}
         {error && <p className="text-destructive">Couldn't load reader: {error}. <a className="underline text-snap" href={url} target="_blank" rel="noreferrer">Open original ↗</a></p>}
-        {!loading && !error && (
-          <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-foreground/90">{content}</pre>
+        {!loading && !error && content && (
+          <div
+            className="article-body text-foreground/90"
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(content, { async: false }) as string) }}
+          />
+        )}
+        {!loading && !error && !content && (
+          <p className="text-muted-foreground">No readable content. <a className="underline text-snap" href={url} target="_blank" rel="noreferrer">Open original ↗</a></p>
         )}
       </motion.article>
     </>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Bell, Search, Bookmark } from "lucide-react";
+import { Bell, Search, Bookmark, X } from "lucide-react";
 
 type Item = { id: string; title: string; url: string; source: string; image: string | null; ts: number; summary: string };
 
@@ -50,6 +50,25 @@ export default function NewsPage() {
   const [q, setQ] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bookmarks, setBookmarks] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("flick:news:bookmarks") || "[]"); } catch { return []; }
+  });
+  const [seenAt, setSeenAt] = useState<number>(() => Number(localStorage.getItem("flick:news:seenAt") || 0));
+  const [showInbox, setShowInbox] = useState(false);
+
+  const toggleBookmark = (id: string) => {
+    setBookmarks((b) => {
+      const next = b.includes(id) ? b.filter((x) => x !== id) : [...b, id];
+      localStorage.setItem("flick:news:bookmarks", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const markSeen = () => {
+    const now = Date.now();
+    setSeenAt(now);
+    localStorage.setItem("flick:news:seenAt", String(now));
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -67,17 +86,21 @@ export default function NewsPage() {
   const filtered = q.trim()
     ? items.filter((i) => i.title.toLowerCase().includes(q.toLowerCase()) || i.source.toLowerCase().includes(q.toLowerCase()))
     : items;
+  const unread = items.filter((i) => i.ts > seenAt).length;
+  const savedItems = items.filter((i) => bookmarks.includes(i.id));
 
   return (
-    <>
+    <div className="w-full max-w-full overflow-x-hidden">
       <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border px-5 py-4 flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight">News <span className="tape-lime">live</span></h1>
           <p className="text-[11px] text-muted-foreground mt-0.5">Stay informed without leaving Flick.</p>
         </div>
-        <button aria-label="Notifications" className="relative w-10 h-10 rounded-full bg-secondary grid place-items-center">
+        <button onClick={() => { setShowInbox(true); markSeen(); }} aria-label="Notifications" className="relative w-10 h-10 rounded-full bg-secondary grid place-items-center">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-snap animate-pulse" />
+          {unread > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-snap text-snap-foreground text-[10px] font-bold grid place-items-center">{unread > 99 ? "99+" : unread}</span>
+          )}
         </button>
       </header>
       <div className="px-5 pt-4">
@@ -93,12 +116,17 @@ export default function NewsPage() {
             {s}
           </motion.button>
         ))}
+        <motion.button whileTap={{ scale: 0.94 }} onClick={() => setShowInbox(true)}
+          className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap bg-secondary text-muted-foreground flex items-center gap-1.5`}>
+          <Bookmark className="w-3.5 h-3.5" /> Saved {bookmarks.length > 0 && `(${bookmarks.length})`}
+        </motion.button>
       </div>
-      <div className="px-4 pb-32 space-y-3">
+      <div className="px-4 pb-40 space-y-3">
         {loading && <div className="text-center text-muted-foreground py-10">Loading the wire…</div>}
         {!loading && filtered.length === 0 && <div className="text-center text-muted-foreground py-10">No headlines yet.</div>}
         {filtered.map((item, i) => (
           <motion.div key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i * 0.02, 0.4) }}>
+            <div className="relative">
             <Link to={`/news/read?u=${encodeURIComponent(item.url)}&t=${encodeURIComponent(item.title)}&s=${encodeURIComponent(item.source)}`}
               className="block card-glass rounded-3xl overflow-hidden hover:ring-1 hover:ring-snap/40 transition">
               {item.image && (
@@ -115,13 +143,40 @@ export default function NewsPage() {
                 {item.summary && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{item.summary}</p>}
                 <div className="flex items-center justify-between mt-3 text-xs">
                   <span className="text-snap font-semibold">Read inside →</span>
-                  <Bookmark className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
             </Link>
+              <button onClick={() => toggleBookmark(item.id)} aria-label="Save"
+                className="absolute top-3 right-3 w-9 h-9 rounded-full bg-background/70 backdrop-blur border border-border grid place-items-center">
+                <Bookmark className={`w-4 h-4 ${bookmarks.includes(item.id) ? "fill-snap text-snap" : "text-muted-foreground"}`} />
+              </button>
+            </div>
           </motion.div>
         ))}
       </div>
-    </>
+
+      {showInbox && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => setShowInbox(false)}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end md:items-center justify-center">
+          <motion.div initial={{ y: 40 }} animate={{ y: 0 }} onClick={(e) => e.stopPropagation()}
+            className="w-full md:max-w-lg bg-card border border-border rounded-t-3xl md:rounded-3xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-display text-lg">Saved & alerts</h3>
+              <button onClick={() => setShowInbox(false)}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {savedItems.length === 0 && <p className="text-muted-foreground text-sm text-center py-8">Tap the bookmark on any story to save it for later.</p>}
+              {savedItems.map((it) => (
+                <Link key={it.id} to={`/news/read?u=${encodeURIComponent(it.url)}&t=${encodeURIComponent(it.title)}&s=${encodeURIComponent(it.source)}`}
+                  onClick={() => setShowInbox(false)} className="block card-glass rounded-2xl p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-snap font-bold">{it.source}</div>
+                  <div className="font-semibold text-sm mt-1 line-clamp-2">{it.title}</div>
+                </Link>
+              ))}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </div>
   );
 }

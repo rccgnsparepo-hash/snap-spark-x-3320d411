@@ -19,6 +19,7 @@ import NotFound from "@/pages/NotFound";
 import NewsPage from "@/pages/News";
 import NewsReaderPage from "@/pages/NewsReader";
 import UserProfilePage from "@/pages/UserProfile";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <IntroGate />
+          <ScrollToTop />
           <Routes>
             <Route path="/intro" element={<IntroPage />} />
             <Route path="/auth" element={<AuthPage />} />

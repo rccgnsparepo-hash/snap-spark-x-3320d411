@@ -74,10 +74,22 @@ export function StoriesBar({ onView }: { onView: (groups: StoryGroup[], index: n
       {groups.map((g, i) => (
         <button key={g.author.id} onClick={() => onView(groups, i)} className="flex flex-col items-center gap-1.5 shrink-0">
           <div className="story-ring w-16 h-16">
-            <div className="w-full h-full rounded-full bg-background p-0.5 relative">
-              <Avatar url={g.author.avatar_url} name={g.author.display_name} size={56} className="!rounded-full" />
+            <div className="w-full h-full rounded-full bg-background p-0.5 relative overflow-hidden">
+              {(() => {
+                const latest = g.segments[g.segments.length - 1];
+                if (latest.media_type === "video") {
+                  return <video src={latest.image_url} muted playsInline preload="metadata" className="w-full h-full rounded-full object-cover" />;
+                }
+                if (latest.image_url) {
+                  return <img src={latest.image_url} alt="" className="w-full h-full rounded-full object-cover" />;
+                }
+                return <Avatar url={g.author.avatar_url} name={g.author.display_name} size={56} className="!rounded-full" />;
+              })()}
+              <div className="absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-background">
+                <Avatar url={g.author.avatar_url} name={g.author.display_name} size={20} className="!rounded-full" />
+              </div>
               {g.segments.length > 1 && (
-                <span className="absolute -bottom-0.5 -right-0.5 bg-snap text-snap-foreground text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
+                <span className="absolute top-0 right-0 bg-snap text-snap-foreground text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none">
                   {g.segments.length}
                 </span>
               )}
