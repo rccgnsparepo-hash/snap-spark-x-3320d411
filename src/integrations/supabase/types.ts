@@ -41,20 +41,26 @@ export type Database = {
       chat_settings: {
         Row: {
           bg_url: string | null
+          font_scale: number
           owner_id: string
           peer_id: string
+          theme: string
           updated_at: string
         }
         Insert: {
           bg_url?: string | null
+          font_scale?: number
           owner_id: string
           peer_id: string
+          theme?: string
           updated_at?: string
         }
         Update: {
           bg_url?: string | null
+          font_scale?: number
           owner_id?: string
           peer_id?: string
+          theme?: string
           updated_at?: string
         }
         Relationships: []
