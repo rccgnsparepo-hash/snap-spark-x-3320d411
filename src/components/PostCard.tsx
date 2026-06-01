@@ -136,6 +136,7 @@ export function PostCard({ post }: { post: PostRow }) {
   const dlName = mediaSrc ? mediaSrc.split("/").pop() || "flick-media" : "flick-media";
 
   return (
+    <>
     <motion.article
       layout
       initial={{ opacity: 0, y: 14 }}
