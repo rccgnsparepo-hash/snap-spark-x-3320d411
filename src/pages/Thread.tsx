@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Send, Timer, Paperclip, Mic, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Send, Timer, Paperclip, Mic, Image as ImageIcon, Settings2, Reply, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,6 +19,9 @@ export default function ThreadPage() {
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [bg, setBg] = useState<string | null>(null);
+  const [fontScale, setFontScale] = useState<number>(1);
+  const [showSettings, setShowSettings] = useState(false);
+  const [replyTo, setReplyTo] = useState<Msg | null>(null);
   const [recording, setRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -35,7 +38,11 @@ export default function ThreadPage() {
   useEffect(() => {
     if (!userId) return;
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle().then(({ data }) => setOther(data as Profile | null));
-    if (user) supabase.from("chat_settings").select("bg_url").eq("owner_id", user.id).eq("peer_id", userId).maybeSingle().then(({ data }) => setBg((data as { bg_url: string | null } | null)?.bg_url ?? null));
+    if (user) supabase.from("chat_settings").select("bg_url, font_scale").eq("owner_id", user.id).eq("peer_id", userId).maybeSingle().then(({ data }) => {
+      const row = data as { bg_url: string | null; font_scale: number | null } | null;
+      setBg(row?.bg_url ?? null);
+      setFontScale(row?.font_scale ?? 1);
+    });
     load();
     const ch = supabase.channel(`dm-${userId}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, load).subscribe();
     const cull = setInterval(() => setMsgs((m) => m.filter((x) => new Date(x.expires_at) > new Date())), 5000);
@@ -47,8 +54,10 @@ export default function ThreadPage() {
 
   const send = async () => {
     if (!user || !userId || !text.trim()) return;
-    const content = text.trim();
+    const replyPrefix = replyTo ? `> ${(replyTo.content ?? "media").slice(0, 80)}\n` : "";
+    const content = replyPrefix + text.trim();
     setText("");
+    setReplyTo(null);
     await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content });
     notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId } });
   };
@@ -95,12 +104,18 @@ export default function ThreadPage() {
     const { error: e1 } = await supabase.storage.from("media").upload(path, file, { contentType: file.type });
     if (e1) { toast.error(e1.message); return; }
     const url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
-    await supabase.from("chat_settings").upsert({ owner_id: user.id, peer_id: userId, bg_url: url, updated_at: new Date().toISOString() });
+    await supabase.from("chat_settings").upsert({ owner_id: user.id, peer_id: userId, bg_url: url, updated_at: new Date().toISOString() }, { onConflict: "owner_id,peer_id" });
     setBg(url);
   };
 
+  const saveFontScale = async (v: number) => {
+    setFontScale(v);
+    if (!user || !userId) return;
+    await supabase.from("chat_settings").upsert({ owner_id: user.id, peer_id: userId, font_scale: v, updated_at: new Date().toISOString() }, { onConflict: "owner_id,peer_id" });
+  };
+
   return (
-    <div className="flex flex-col h-screen relative" style={bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
+    <div className="flex flex-col h-[100dvh] relative" style={bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2">
         <Link to="/messages" className="md:hidden p-2 -ml-2"><ArrowLeft /></Link>
         <Avatar url={other?.avatar_url} name={other?.display_name} size={36} />
@@ -112,13 +127,28 @@ export default function ThreadPage() {
           <ImageIcon className="w-4 h-4" />
           <input type="file" hidden accept="image/*" onChange={(e) => e.target.files?.[0] && setBackground(e.target.files[0])} />
         </label>
+        <button onClick={() => setShowSettings(true)} className="p-2 text-muted-foreground hover:text-foreground" aria-label="Chat settings">
+          <Settings2 className="w-4 h-4" />
+        </button>
       </header>
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2" style={{ fontSize: `${fontScale}rem` }}>
         <AnimatePresence initial={false}>
           {msgs.map((m) => {
             const mine = m.sender_id === user?.id;
             return (
-              <motion.div key={m.id} layout initial={{ opacity: 0, y: 8, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ type: "spring", stiffness: 320, damping: 26 }} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+              <motion.div
+                key={m.id}
+                layout
+                initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                dragElastic={0.3}
+                onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 60) setReplyTo(m); }}
+                className={`flex ${mine ? "justify-end" : "justify-start"}`}
+              >
                 <div className={`max-w-[78%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
                   {m.media_type === "audio" && m.media_url ? (
                     <div className="px-3 py-2"><VoiceMessage src={m.media_url} mine={mine} /></div>
@@ -140,19 +170,50 @@ export default function ThreadPage() {
                     <div className="px-3 py-1.5 text-xs text-muted-foreground truncate">{m.content}</div>
                   )}
                 </div>
+                <button onClick={() => setReplyTo(m)} className="self-center mx-1 opacity-0 hover:opacity-100 md:opacity-40 md:hover:opacity-100 text-muted-foreground" aria-label="Reply">
+                  <Reply className="w-4 h-4" />
+                </button>
               </motion.div>
             );
           })}
         </AnimatePresence>
         <div ref={endRef} />
       </div>
-      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="sticky bottom-0 bg-background/95 backdrop-blur border-t border-border p-3 flex gap-2 items-center">
+      {replyTo && (
+        <div className="px-3 py-2 bg-secondary/60 border-t border-border flex items-center gap-2 text-xs">
+          <Reply className="w-3.5 h-3.5 text-snap" />
+          <span className="truncate flex-1">Replying to: {replyTo.content?.slice(0, 80) ?? "media"}</span>
+          <button onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
+      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="sticky bottom-0 z-20 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] mb-24 md:mb-0 rounded-t-2xl md:rounded-none flex gap-2 items-center">
         <button type="button" onClick={() => fileRef.current?.click()} className="text-muted-foreground p-2"><Paperclip className="w-5 h-5" /></button>
         <input ref={fileRef} type="file" hidden onChange={(e) => e.target.files?.[0] && uploadAndSend(e.target.files[0], "file")} />
         <button type="button" onClick={recordVoice} className={`p-2 rounded-full ${recording ? "bg-red-500 text-white animate-pulse" : "text-muted-foreground"}`}><Mic className="w-5 h-5" /></button>
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Send a disappearing message…" className="flex-1 bg-input rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring" />
         <button type="submit" disabled={!text.trim()} className="w-12 h-12 rounded-full bg-snap text-snap-foreground grid place-items-center disabled:opacity-50"><Send className="w-5 h-5" /></button>
       </form>
+
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSettings(false)}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end md:items-center justify-center">
+            <motion.div initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} onClick={(e) => e.stopPropagation()}
+              className="w-full md:max-w-md bg-card border border-border rounded-t-3xl md:rounded-3xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display text-xl">Chat settings</h3>
+                <button onClick={() => setShowSettings(false)}><X className="w-5 h-5" /></button>
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Text size</label>
+                <input type="range" min={0.85} max={1.4} step={0.05} value={fontScale} onChange={(e) => saveFontScale(Number(e.target.value))} className="w-full accent-snap mt-2" />
+                <div className="flex justify-between text-xs text-muted-foreground"><span>A</span><span style={{ fontSize: `${fontScale}rem` }}>Aa preview</span><span className="text-lg">A</span></div>
+              </div>
+              <p className="text-xs text-muted-foreground">Settings save automatically per chat.</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
