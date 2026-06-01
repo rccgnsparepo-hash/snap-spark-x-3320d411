@@ -1,5 +1,5 @@
-import { Heart, MessageCircle, Repeat2, Send, X, Share2, Download, MoreHorizontal } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Heart, MessageCircle, Repeat2, Send, X, Share2, Download, MoreHorizontal, Volume2, VolumeX, Play } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -11,6 +11,25 @@ import { VoiceMessage } from "./VoiceMessage";
 import { PostActions } from "./PostActions";
 import { Link } from "react-router-dom";
 import { notify } from "@/lib/notify";
+import { toast } from "sonner";
+
+async function directDownload(url: string, name: string) {
+  try {
+    const res = await fetch(url, { mode: "cors" });
+    if (!res.ok) throw new Error("fetch failed");
+    const blob = await res.blob();
+    const obj = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = obj; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(obj), 2000);
+  } catch {
+    // Fallback: anchor download
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.target = "_blank"; a.rel = "noreferrer";
+    document.body.appendChild(a); a.click(); a.remove();
+    toast.message("Saving…");
+  }
+}
 
 export type PostRow = {
   id: string;
@@ -41,6 +60,14 @@ export function PostCard({ post }: { post: PostRow }) {
   const [draft, setDraft] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [playing, setPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const toggleVideo = () => {
+    const v = videoRef.current; if (!v) return;
+    if (v.paused) { v.play(); setPlaying(true); } else { v.pause(); setPlaying(false); }
+  };
 
   const refreshCounts = async () => {
     const [likes, reshares, comments] = await Promise.all([
@@ -136,11 +163,25 @@ export function PostCard({ post }: { post: PostRow }) {
         {mediaSrc && (
           <div className="mt-3 relative group">
             {post.media_type === "video" && (
-              <video
-                src={mediaSrc}
-                autoPlay muted loop playsInline controls
-                className="rounded-2xl border border-border max-h-[520px] w-full bg-black"
-              />
+              <div className="relative" onClick={(e) => { e.preventDefault(); toggleVideo(); }}>
+                <video
+                  ref={videoRef}
+                  src={mediaSrc}
+                  autoPlay muted={muted} loop playsInline
+                  className="rounded-2xl border border-border max-h-[520px] w-full bg-black no-controls"
+                  onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+                />
+                {!playing && (
+                  <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                    <div className="bg-black/50 rounded-full p-4 backdrop-blur"><Play className="w-8 h-8 text-white" /></div>
+                  </div>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); setMuted(m => !m); }}
+                  className="absolute bottom-2 right-2 bg-background/80 backdrop-blur rounded-full p-2 border border-border"
+                  aria-label={muted ? "Unmute" : "Mute"}>
+                  {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                </button>
+              </div>
             )}
             {post.media_type === "audio" && (
               <div className="rounded-2xl border border-border bg-card p-3">
@@ -150,21 +191,18 @@ export function PostCard({ post }: { post: PostRow }) {
             {(post.media_type === "image" || (!post.media_type && post.image_url)) && (
               <img src={mediaSrc} alt="" className="rounded-2xl border border-border max-h-[520px] w-full object-cover" loading="lazy" />
             )}
-            <a
-              href={mediaSrc}
-              download={dlName}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); directDownload(mediaSrc, dlName); }}
               className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition bg-background/80 backdrop-blur rounded-full p-2 border border-border"
               aria-label="Download"
             >
               <Download className="w-4 h-4" />
-            </a>
+            </button>
           </div>
         )}
         <div className="flex items-center gap-6 mt-3 text-muted-foreground text-sm flex-wrap">
-          <button onClick={openComments} className="flex items-center gap-1.5 hover:text-primary transition">
+          <button onClick={() => { if (showComments) setShowComments(false); else openComments(); }} className="flex items-center gap-1.5 hover:text-primary transition">
             <MessageCircle className="w-4 h-4" /> {commentCount > 0 && commentCount}
           </button>
           <button onClick={toggleReshare} className={`flex items-center gap-1.5 transition ${reshared ? "text-emerald-400" : "hover:text-emerald-400"}`}>
@@ -181,17 +219,35 @@ export function PostCard({ post }: { post: PostRow }) {
       </div>
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} postId={post.id} postPreview={post.content || "Check this flick"} />
       <PostActions postId={post.id} mediaUrl={mediaSrc} open={actionsOpen} onClose={() => setActionsOpen(false)} onShare={() => setShareOpen(true)} />
+      {/* Inline comment composer + list (Instagram-like) */}
+      </div>
+      </motion.article>
       <AnimatePresence>
         {showComments && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowComments(false)}
-            className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end md:items-center justify-center p-0 md:p-6">
-            <motion.div initial={{ y: 30 }} animate={{ y: 0 }} exit={{ y: 30 }} onClick={(e) => e.stopPropagation()}
-              className="w-full md:max-w-md bg-card rounded-t-3xl md:rounded-3xl border border-border max-h-[80vh] flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b border-border">
-                <h3 className="font-semibold">Comments</h3>
-                <button onClick={() => setShowComments(false)}><X className="w-5 h-5" /></button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <CommentSheet
+            comments={comments}
+            draft={draft}
+            setDraft={setDraft}
+            onSend={sendComment}
+            onClose={() => setShowComments(false)}
+          />
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+function CommentSheet({ comments, draft, setDraft, onSend, onClose }: { comments: Comment[]; draft: string; setDraft: (s: string) => void; onSend: () => void; onClose: () => void }) {
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end md:items-center justify-center p-0 md:p-6">
+      <motion.div initial={{ y: 30 }} animate={{ y: 0 }} exit={{ y: 30 }} onClick={(e) => e.stopPropagation()}
+        className="w-full md:max-w-md bg-card rounded-t-3xl md:rounded-3xl border border-border max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="font-semibold">Comments</h3>
+          <button onClick={onClose}><X className="w-5 h-5" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {comments.length === 0 && <p className="text-center text-muted-foreground text-sm">No comments yet.</p>}
                 {comments.map((c) => (
                   <div key={c.id} className="flex gap-2.5 text-sm">
@@ -206,15 +262,12 @@ export function PostCard({ post }: { post: PostRow }) {
                     </div>
                   </div>
                 ))}
-              </div>
-              <form onSubmit={(e) => { e.preventDefault(); sendComment(); }} className="p-3 border-t border-border flex gap-2">
+        </div>
+        <form onSubmit={(e) => { e.preventDefault(); onSend(); }} className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-border flex gap-2">
                 <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Add a comment…" className="flex-1 bg-input rounded-full px-4 py-2 focus:outline-none" />
                 <button type="submit" disabled={!draft.trim()} className="w-10 h-10 rounded-full bg-snap text-snap-foreground grid place-items-center disabled:opacity-50"><Send className="w-4 h-4" /></button>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.article>
+        </form>
+      </motion.div>
+    </motion.div>
   );
 }
