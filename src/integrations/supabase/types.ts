@@ -187,6 +187,8 @@ export type Database = {
           media_url: string | null
           read_at: string | null
           recipient_id: string
+          reply_snippet: string | null
+          reply_to_id: string | null
           sender_id: string
         }
         Insert: {
@@ -199,6 +201,8 @@ export type Database = {
           media_url?: string | null
           read_at?: string | null
           recipient_id: string
+          reply_snippet?: string | null
+          reply_to_id?: string | null
           sender_id: string
         }
         Update: {
@@ -211,6 +215,8 @@ export type Database = {
           media_url?: string | null
           read_at?: string | null
           recipient_id?: string
+          reply_snippet?: string | null
+          reply_to_id?: string | null
           sender_id?: string
         }
         Relationships: [
@@ -229,6 +235,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          actor_id: string | null
+          body: string | null
+          created_at: string
+          data: Json
+          id: string
+          kind: string
+          read_at: string | null
+          title: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          kind: string
+          read_at?: string | null
+          title: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          body?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          kind?: string
+          read_at?: string | null
+          title?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       posts: {
         Row: {
@@ -401,6 +446,30 @@ export type Database = {
         }
         Update: {
           story_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          is_premium: boolean
+          premium_since: string | null
+          theme: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          is_premium?: boolean
+          premium_since?: string | null
+          theme?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          is_premium?: boolean
+          premium_since?: string | null
+          theme?: Json
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

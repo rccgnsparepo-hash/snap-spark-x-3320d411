@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Bell, Search, Bookmark, X } from "lucide-react";
+import { Bell, Search, Bookmark, X, Heart, MessageCircle, Share2 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 
 type Item = { id: string; title: string; url: string; source: string; image: string | null; ts: number; summary: string };
 
@@ -46,6 +50,7 @@ async function fetchReddit(sub: string): Promise<Item[]> {
 }
 
 export default function NewsPage() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<typeof SOURCES[number]>("For You");
   const [q, setQ] = useState("");
   const [items, setItems] = useState<Item[]>([]);
@@ -88,6 +93,28 @@ export default function NewsPage() {
     : items;
   const unread = items.filter((i) => i.ts > seenAt).length;
   const savedItems = items.filter((i) => bookmarks.includes(i.id));
+
+  const share = async (it: Item) => {
+    const shareData = { title: it.title, text: `${it.title} — via Flick`, url: it.url };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else { await navigator.clipboard.writeText(`${it.title}\n${it.url}`); toast.success("Link copied"); }
+    } catch { /* user cancelled */ }
+  };
+
+  const repost = async (it: Item) => {
+    if (!user) { toast.error("Sign in to repost"); return; }
+    const content = `${it.title}\n\n${it.url}`;
+    const { error } = await supabase.from("posts").insert({ author_id: user.id, content, media_type: "text" });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Shared to your feed");
+    notify({ kind: "post", message: it.title, actor: { id: user.id } });
+  };
+
+  const like = (id: string) => {
+    toggleBookmark(id);
+    toast.success(bookmarks.includes(id) ? "Removed from saved" : "Saved");
+  };
 
   return (
     <div className="w-full max-w-full overflow-x-hidden">
@@ -150,6 +177,20 @@ export default function NewsPage() {
                 className="absolute top-3 right-3 w-9 h-9 rounded-full bg-background/70 backdrop-blur border border-border grid place-items-center">
                 <Bookmark className={`w-4 h-4 ${bookmarks.includes(item.id) ? "fill-snap text-snap" : "text-muted-foreground"}`} />
               </button>
+              <div className="flex items-center justify-around px-2 py-2 border-t border-border/60 bg-background/30">
+                <button onClick={() => like(item.id)} className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition ${bookmarks.includes(item.id) ? "text-rose-400" : "text-muted-foreground hover:text-rose-400"}`}>
+                  <Heart className={`w-4 h-4 ${bookmarks.includes(item.id) ? "fill-current" : ""}`} /> Like
+                </button>
+                <button onClick={() => repost(item)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full text-muted-foreground hover:text-snap transition">
+                  <MessageCircle className="w-4 h-4" /> Repost
+                </button>
+                <button onClick={() => toggleBookmark(item.id)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full text-muted-foreground hover:text-foreground transition">
+                  <Bookmark className={`w-4 h-4 ${bookmarks.includes(item.id) ? "fill-snap text-snap" : ""}`} /> Save
+                </button>
+                <button onClick={() => share(item)} className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full text-muted-foreground hover:text-snap transition">
+                  <Share2 className="w-4 h-4" /> Share
+                </button>
+              </div>
             </div>
           </motion.div>
         ))}

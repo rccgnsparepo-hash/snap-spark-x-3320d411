@@ -1,12 +1,17 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Bookmark, Archive, Activity, Bell, Clock, Tablet, BarChart3, BadgeCheck, Settings, Lock, Star, Crosshair, Slash, EyeOff, Users, MessageSquare, AtSign, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { usePremium } from "@/lib/premium";
+import { UpgradeModal } from "./UpgradeModal";
+import { useState } from "react";
 import { toast } from "sonner";
 
 type Item = { icon: React.ComponentType<{ className?: string }>; label: string; sub?: string; danger?: boolean; onClick?: () => void };
 
 export function ProfileSettings({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { signOut } = useAuth();
+  const { isPremium } = usePremium();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const sections: { title: string; items: Item[] }[] = [
     { title: "How you use Flick", items: [
       { icon: Bookmark, label: "Saved" },
@@ -18,7 +23,7 @@ export function ProfileSettings({ open, onClose }: { open: boolean; onClose: () 
     ]},
     { title: "For creators", items: [
       { icon: BarChart3, label: "Insights" },
-      { icon: BadgeCheck, label: "Flick Verified", sub: "Not subscribed" },
+      { icon: BadgeCheck, label: "Flick Verified", sub: isPremium ? "Active ✦" : "Upgrade", onClick: () => setUpgradeOpen(true) },
       { icon: Settings, label: "Account tools" },
     ]},
     { title: "Who can see your content", items: [
@@ -39,6 +44,8 @@ export function ProfileSettings({ open, onClose }: { open: boolean; onClose: () 
   ];
 
   return (
+    <>
+    <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     <AnimatePresence>
       {open && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -73,5 +80,6 @@ export function ProfileSettings({ open, onClose }: { open: boolean; onClose: () 
         </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 }

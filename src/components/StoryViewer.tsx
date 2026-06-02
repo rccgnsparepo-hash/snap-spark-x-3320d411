@@ -68,11 +68,12 @@ export function StoryViewer({
   return (
     <AnimatePresence>
       {groups && group && seg && (
-        <motion.div className="fixed inset-0 z-50 bg-black grid place-items-center"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div className="fixed inset-0 z-[80] bg-black overflow-hidden"
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          style={{ height: "100dvh" }}>
 
           {/* segment progress bars */}
-          <div className="absolute top-3 inset-x-3 flex gap-1 z-10">
+          <div className="absolute top-3 inset-x-3 flex gap-1 z-30">
             {group.segments.map((_, i) => (
               <div key={i} className="flex-1 h-1 rounded-full bg-white/25 overflow-hidden">
                 <motion.div
@@ -87,7 +88,7 @@ export function StoryViewer({
           </div>
 
           {/* header */}
-          <div className="absolute top-6 inset-x-4 mt-3 flex items-center justify-between z-10">
+          <div className="absolute top-6 inset-x-4 mt-3 flex items-center justify-between z-30 pointer-events-none">
             <div className="flex items-center gap-2">
               <Avatar url={group.author.avatar_url} name={group.author.display_name} size={36} />
               <div className="text-white">
@@ -95,12 +96,12 @@ export function StoryViewer({
                 <div className="text-[11px] text-white/60">{formatDistanceToNowStrict(new Date(seg.created_at))} ago</div>
               </div>
             </div>
-            <button onClick={onClose} className="text-white/80 hover:text-white p-2"><X /></button>
+            <button onClick={onClose} className="text-white/80 hover:text-white p-2 pointer-events-auto"><X /></button>
           </div>
 
-          {/* media */}
+          {/* media (fills the viewport, contains image/video) */}
           <div
-            className="relative w-full h-full grid place-items-center"
+            className="absolute inset-0 grid place-items-center bg-black"
             onMouseDown={() => setPaused(true)}
             onMouseUp={() => setPaused(false)}
             onTouchStart={() => setPaused(true)}
@@ -113,26 +114,26 @@ export function StoryViewer({
                 autoPlay
                 playsInline
                 onEnded={advance}
-                className="max-h-[90vh] max-w-full object-contain"
+                className="w-full h-full object-contain"
               />
             ) : (
-              <img key={seg.id} src={seg.image_url} alt="" className="max-h-[90vh] max-w-full object-contain" />
+              <img key={seg.id} src={seg.image_url} alt="" className="w-full h-full object-contain select-none" draggable={false} />
             )}
             {seg.caption && (
-              <div className="absolute bottom-10 left-0 right-0 text-center text-white text-lg font-semibold px-6 drop-shadow-lg">
+              <div className="absolute bottom-16 left-0 right-0 text-center text-white text-lg font-semibold px-6 drop-shadow-lg">
                 {seg.caption}
               </div>
             )}
           </div>
 
-          {/* tap zones */}
+          {/* tap zones — sit above media, below header */}
           <button aria-label="Previous" onClick={back}
-            className="absolute inset-y-0 left-0 w-1/3 group">
-            <ChevronLeft className="w-6 h-6 text-white/0 group-hover:text-white/40 transition mx-3" />
+            className="absolute top-20 bottom-0 left-0 w-1/3 z-20 group flex items-center">
+            <ChevronLeft className="w-7 h-7 text-white/0 group-hover:text-white/50 transition mx-3" />
           </button>
           <button aria-label="Next" onClick={advance}
-            className="absolute inset-y-0 right-0 w-1/3 group flex justify-end items-center">
-            <ChevronRight className="w-6 h-6 text-white/0 group-hover:text-white/40 transition mx-3" />
+            className="absolute top-20 bottom-0 right-0 w-2/3 z-20 group flex justify-end items-center">
+            <ChevronRight className="w-7 h-7 text-white/0 group-hover:text-white/50 transition mx-3" />
           </button>
         </motion.div>
       )}

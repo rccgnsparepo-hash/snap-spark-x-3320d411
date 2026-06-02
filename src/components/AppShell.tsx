@@ -1,10 +1,13 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, MessageCircle, User, LogOut, BookOpen, Newspaper, Plus } from "lucide-react";
+import { Home, MessageCircle, User, LogOut, BookOpen, Newspaper, Plus, Bell } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "./Avatar";
 import { AnimatedBg } from "./AnimatedBg";
 import { AnimatePresence, motion } from "framer-motion";
 import { CoachMark } from "./CoachMark";
+import { NotificationsInbox } from "./NotificationsInbox";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
   { to: "/", icon: Home, label: "Home" },
@@ -16,13 +19,28 @@ const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[]
 
 export function AppShell() {
   const { pathname } = useLocation();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).is("read_at", null);
+      setUnread(count ?? 0);
+    };
+    load();
+    const ch = supabase.channel(`inbox-count-${user.id}`).on("postgres_changes",
+      { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, load).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row relative">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row relative bg-background">
       <AnimatedBg />
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border p-6 sticky top-0 h-screen">
+      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border p-6 sticky top-0 h-screen bg-background/80 backdrop-blur z-20">
         <Link to="/" className="font-display text-3xl mb-10 tracking-tight">flick<span className="text-snap">.</span></Link>
         <nav className="flex flex-col gap-1">
           {tabs.map((t) => {
@@ -42,6 +60,10 @@ export function AppShell() {
           <Link to="/camera" className="flex items-center gap-4 px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60">
             <Plus className="w-6 h-6" /> Camera
           </Link>
+          <button onClick={() => setInboxOpen(true)} className="flex items-center gap-4 px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60 text-left relative">
+            <Bell className="w-6 h-6" /> Notifications
+            {unread > 0 && <span className="ml-auto bg-snap text-snap-foreground text-xs font-bold rounded-full px-2 py-0.5">{unread > 99 ? "99+" : unread}</span>}
+          </button>
         </nav>
         <div className="mt-auto flex items-center gap-3 p-3 rounded-2xl border border-border">
           <Avatar url={profile?.avatar_url} name={profile?.display_name} size={40} />
@@ -56,15 +78,22 @@ export function AppShell() {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-screen pb-32 md:pb-0">
+      <main className="flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-[100dvh] pb-32 md:pb-0 bg-background relative z-10">
+        {/* Mobile top bar — bell only (logo & nav live in bottom dock) */}
+        <div className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-2.5 bg-background/85 backdrop-blur border-b border-border">
+          <Link to="/" className="font-display text-xl tracking-tight">flick<span className="text-snap">.</span></Link>
+          <button onClick={() => setInboxOpen(true)} className="relative w-9 h-9 rounded-full bg-secondary grid place-items-center" aria-label="Notifications">
+            <Bell className="w-4 h-4" />
+            {unread > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-snap text-snap-foreground text-[10px] font-bold grid place-items-center">{unread > 99 ? "99+" : unread}</span>}
+          </button>
+        </div>
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, x: 24, rotateY: 6 }}
-            animate={{ opacity: 1, x: 0, rotateY: 0 }}
-            exit={{ opacity: 0, x: -24, rotateY: -6 }}
-            style={{ transformPerspective: 1200 }}
-            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             <Outlet />
           </motion.div>
@@ -111,6 +140,7 @@ export function AppShell() {
         </motion.div>
       </nav>
       <CoachMark />
+      <NotificationsInbox open={inboxOpen} onClose={() => setInboxOpen(false)} />
     </div>
   );
 }
