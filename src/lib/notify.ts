@@ -33,7 +33,7 @@ export async function notify(input: {
           title: input.title ?? fallbackTitle,
           body: input.message ?? null,
           url: input.url ?? null,
-          data: input.data ?? {},
+          data: (input.data ?? {}) as never,
         }));
       if (rows.length) await supabase.from("notifications").insert(rows);
     }
