@@ -184,6 +184,7 @@ export default function ThreadPage() {
             return (
               <motion.div
                 key={m.id}
+                id={`msg-${m.id}`}
                 layout
                 initial={{ opacity: 0, y: 8, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
