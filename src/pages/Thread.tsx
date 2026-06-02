@@ -9,7 +9,7 @@ import { Avatar } from "@/components/Avatar";
 import { VoiceMessage } from "@/components/VoiceMessage";
 import { notify } from "@/lib/notify";
 
-type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string; read_at: string | null };
+type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string; read_at: string | null; reply_to_id: string | null; reply_snippet: string | null };
 type Profile = { id: string; handle: string; display_name: string; avatar_url: string | null };
 
 export default function ThreadPage() {
@@ -23,6 +23,10 @@ export default function ThreadPage() {
   const [showSettings, setShowSettings] = useState(false);
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
   const [recording, setRecording] = useState(false);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const typingTimeoutRef = useRef<number | null>(null);
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastSentTypingRef = useRef<number>(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -45,8 +49,27 @@ export default function ThreadPage() {
     });
     load();
     const ch = supabase.channel(`dm-${userId}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, load).subscribe();
+    // Typing presence — pair-stable channel name (sorted ids)
+    if (user) {
+      const pair = [user.id, userId].sort().join("--");
+      const typing = supabase.channel(`typing-${pair}`, { config: { broadcast: { self: false } } });
+      typing.on("broadcast", { event: "typing" }, (msg) => {
+        const from = (msg.payload as { from?: string })?.from;
+        if (from && from !== user.id) {
+          setPeerTyping(true);
+          if (typingTimeoutRef.current) window.clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = window.setTimeout(() => setPeerTyping(false), 2500);
+        }
+      }).subscribe();
+      typingChannelRef.current = typing;
+    }
     const cull = setInterval(() => setMsgs((m) => m.filter((x) => new Date(x.expires_at) > new Date())), 5000);
-    return () => { supabase.removeChannel(ch); clearInterval(cull); };
+    return () => {
+      supabase.removeChannel(ch);
+      if (typingChannelRef.current) supabase.removeChannel(typingChannelRef.current);
+      if (typingTimeoutRef.current) window.clearTimeout(typingTimeoutRef.current);
+      clearInterval(cull);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, user?.id]);
 
@@ -54,12 +77,22 @@ export default function ThreadPage() {
 
   const send = async () => {
     if (!user || !userId || !text.trim()) return;
-    const replyPrefix = replyTo ? `> ${(replyTo.content ?? "media").slice(0, 80)}\n` : "";
-    const content = replyPrefix + text.trim();
+    const content = text.trim();
+    const reply_to_id = replyTo?.id ?? null;
+    const reply_snippet = replyTo ? (replyTo.content ?? (replyTo.media_type ? `📎 ${replyTo.media_type}` : "media")).slice(0, 140) : null;
     setText("");
     setReplyTo(null);
-    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content });
-    notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId } });
+    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content, reply_to_id, reply_snippet });
+    notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId }, recipients: [userId], url: `/messages/${user.id}` });
+  };
+
+  const onType = (v: string) => {
+    setText(v);
+    const now = Date.now();
+    if (typingChannelRef.current && user && now - lastSentTypingRef.current > 1200) {
+      lastSentTypingRef.current = now;
+      typingChannelRef.current.send({ type: "broadcast", event: "typing", payload: { from: user.id } });
+    }
   };
 
   const uploadAndSend = async (f: File, type: "audio" | "file") => {
@@ -121,7 +154,20 @@ export default function ThreadPage() {
         <Avatar url={other?.avatar_url} name={other?.display_name} size={36} />
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">{other?.display_name ?? "…"}</div>
-          <div className="text-[11px] text-snap flex items-center gap-1"><Timer className="w-3 h-3" /> Disappears in 24h</div>
+          <div className="text-[11px] flex items-center gap-1">
+            {peerTyping ? (
+              <span className="text-snap flex items-center gap-1">
+                <span className="flex gap-0.5">
+                  <span className="w-1 h-1 bg-snap rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1 h-1 bg-snap rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1 h-1 bg-snap rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                </span>
+                typing…
+              </span>
+            ) : (
+              <span className="text-snap flex items-center gap-1"><Timer className="w-3 h-3" /> Disappears in 24h</span>
+            )}
+          </div>
         </div>
         <label className="p-2 cursor-pointer text-muted-foreground hover:text-foreground" title="Change background">
           <ImageIcon className="w-4 h-4" />
@@ -150,6 +196,22 @@ export default function ThreadPage() {
                 className={`flex ${mine ? "justify-end" : "justify-start"}`}
               >
                 <div className={`max-w-[78%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
+                  {m.reply_to_id && m.reply_snippet && (
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById(`msg-${m.reply_to_id}`);
+                        if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.add("ring-2","ring-snap"); setTimeout(()=>el.classList.remove("ring-2","ring-snap"), 1200); }
+                      }}
+                      className={`w-full text-left flex gap-2 px-3 pt-2 pb-1.5 border-l-[3px] ${mine ? "border-snap bg-snap/10" : "border-foreground/40 bg-foreground/5"}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className={`text-[10px] uppercase tracking-wider font-bold ${mine ? "text-snap" : "text-muted-foreground"}`}>
+                          {m.reply_to_id === (mine ? m.sender_id : m.recipient_id) ? "You" : other?.display_name ?? "Reply"}
+                        </div>
+                        <div className="text-xs truncate opacity-80">{m.reply_snippet}</div>
+                      </div>
+                    </button>
+                  )}
                   {m.media_type === "audio" && m.media_url ? (
                     <div className="px-3 py-2"><VoiceMessage src={m.media_url} mine={mine} /></div>
                   ) : m.media_type === "image" && m.media_url ? (
