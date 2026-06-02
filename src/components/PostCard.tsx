@@ -101,7 +101,13 @@ export function PostCard({ post }: { post: PostRow }) {
     } else {
       setLiked(true); setLikeCount((c) => c + 1);
       await supabase.from("likes").insert({ user_id: user.id, post_id: post.id });
-      notify({ kind: "like", message: post.content?.slice(0, 80) ?? "", actor: { id: user.id }, data: { post_id: post.id } });
+      if (post.author?.id && post.author.id !== user.id) {
+        notify({
+          kind: "like", message: post.content?.slice(0, 80) ?? "",
+          actor: { id: user.id }, data: { post_id: post.id },
+          recipients: [post.author.id], url: `/u/${post.author.handle}`,
+        });
+      }
     }
   };
 
@@ -127,7 +133,13 @@ export function PostCard({ post }: { post: PostRow }) {
     const c = draft.trim();
     setDraft("");
     await supabase.from("comments").insert({ post_id: post.id, author_id: user.id, content: c });
-    notify({ kind: "comment", message: c.slice(0, 100), actor: { id: user.id }, data: { post_id: post.id } });
+    if (post.author?.id && post.author.id !== user.id) {
+      notify({
+        kind: "comment", message: c.slice(0, 100),
+        actor: { id: user.id }, data: { post_id: post.id },
+        recipients: [post.author.id], url: `/u/${post.author.handle}`,
+      });
+    }
     const { data } = await supabase.from("comments").select(COMMENT_SELECT).eq("post_id", post.id).order("created_at", { ascending: true });
     setComments((data ?? []) as unknown as Comment[]);
   };

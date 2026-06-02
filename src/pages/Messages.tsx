@@ -36,8 +36,8 @@ export default function MessagesPage() {
   const filtered = people.filter((p) => !q || p.handle.toLowerCase().includes(q.toLowerCase()) || p.display_name.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="grid md:grid-cols-[280px_1fr] min-h-screen">
-      <aside className={`${showList ? "block" : "hidden md:block"} border-r border-border`}>
+    <div className="grid md:grid-cols-[320px_1fr] min-h-[100dvh]">
+      <aside className={`${showList ? "block" : "hidden md:block"} border-r border-border bg-background pb-32 md:pb-0`}>
         <header className="sticky top-0 bg-background/80 backdrop-blur border-b border-border p-4">
           <h1 className="font-display text-2xl mb-3">DMs</h1>
           <div className="relative">
