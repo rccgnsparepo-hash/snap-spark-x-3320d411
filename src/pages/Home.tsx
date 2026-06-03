@@ -6,18 +6,25 @@ import { Composer } from "@/components/Composer";
 import { PostCard, type PostRow } from "@/components/PostCard";
 import { Avatar } from "@/components/Avatar";
 import { motion } from "framer-motion";
-import { Search, Bell, Heart } from "lucide-react";
+import { Search, Heart, TrendingUp, UserPlus } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
 
-const CHIPS = ["Trending", "Recent"] as const;
+const CHIPS = ["For You", "Trending", "News", "Recent"] as const;
+
+type NewsItem = { id: string; title: string; url: string; source: string; image: string | null; ts: number };
 
 export default function HomePage() {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [viewer, setViewer] = useState<{ groups: StoryGroup[]; index: number } | null>(null);
   const [chip, setChip] = useState<typeof CHIPS[number]>("Trending");
   const [query, setQuery] = useState("");
   const [people, setPeople] = useState<{ id: string; handle: string; display_name: string; avatar_url: string | null }[]>([]);
+  const [suggested, setSuggested] = useState<{ id: string; handle: string; display_name: string; avatar_url: string | null; bio: string | null }[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
   const load = async () => {
     const { data } = await supabase
       .from("posts")
@@ -37,6 +44,26 @@ export default function HomePage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "likes" }, load)
       .subscribe();
     return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Suggested people ("Who to follow")
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("profiles").select("id, handle, display_name, avatar_url, bio").neq("id", user.id).limit(6)
+      .then(({ data }) => setSuggested((data ?? []) as typeof suggested));
+  }, [user?.id]);
+
+  // Today's news (Hacker News headlines, lightweight)
+  useEffect(() => {
+    fetch("https://hn.algolia.com/api/v1/search?tags=front_page")
+      .then((r) => r.json())
+      .then((j) => {
+        const items: NewsItem[] = (j.hits ?? []).slice(0, 6).map((h: { objectID: string; title: string; url: string | null; created_at_i: number }) => ({
+          id: `hn-${h.objectID}`, title: h.title, url: h.url ?? `https://news.ycombinator.com/item?id=${h.objectID}`,
+          source: "Hacker News", image: null, ts: h.created_at_i * 1000,
+        }));
+        setNews(items);
+      }).catch(() => {});
   }, []);
 
   // user search
@@ -80,10 +107,6 @@ export default function HomePage() {
           <h1 className="font-display text-2xl tracking-tight">Explore <span className="tape-lime">flicks</span></h1>
           <p className="text-[11px] text-muted-foreground mt-0.5">Share moments instantly.</p>
         </div>
-        <button aria-label="Notifications" className="relative w-10 h-10 rounded-full bg-secondary grid place-items-center">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-snap" />
-        </button>
       </header>
 
       {/* Search */}
