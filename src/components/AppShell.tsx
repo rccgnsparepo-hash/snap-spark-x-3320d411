@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, MessageCircle, User, LogOut, BookOpen, Newspaper, Plus, Bell } from "lucide-react";
+import { Home, MessageCircle, User, LogOut, BookOpen, Newspaper, Plus, Bell, Camera, MoreHorizontal, Trophy, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "./Avatar";
 import { AnimatedBg } from "./AnimatedBg";
@@ -22,6 +22,11 @@ export function AppShell() {
   const { profile, signOut, user } = useAuth();
   const [inboxOpen, setInboxOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // hide top bar & dock when inside an open chat thread
+  const inThread = /^\/messages\/[^/]+/.test(pathname);
+  const chrome = !inThread;
 
   useEffect(() => {
     if (!user) return;
@@ -78,8 +83,9 @@ export function AppShell() {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-[100dvh] pb-32 md:pb-0 bg-background relative z-10">
+      <main className={`flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-[100dvh] ${chrome ? "pb-32 md:pb-0" : ""} bg-background relative z-10`}>
         {/* Mobile top bar — bell only (logo & nav live in bottom dock) */}
+        {chrome && (
         <div className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-2.5 bg-background/85 backdrop-blur border-b border-border">
           <Link to="/" className="font-display text-xl tracking-tight">flick<span className="text-snap">.</span></Link>
           <button onClick={() => setInboxOpen(true)} className="relative w-9 h-9 rounded-full bg-secondary grid place-items-center" aria-label="Notifications">
@@ -87,13 +93,22 @@ export function AppShell() {
             {unread > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-snap text-snap-foreground text-[10px] font-bold grid place-items-center">{unread > 99 ? "99+" : unread}</span>}
           </button>
         </div>
+        )}
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            drag={chrome ? "x" : false}
+            dragDirectionLock
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.18}
+            onDragEnd={(_, info) => {
+              if (info.offset.x > 110 && Math.abs(info.velocity.x) > 50) window.history.back();
+              else if (info.offset.x < -110 && Math.abs(info.velocity.x) > 50) window.history.forward();
+            }}
           >
             <Outlet />
           </motion.div>
@@ -101,12 +116,13 @@ export function AppShell() {
       </main>
 
       {/* Mobile floating dock (image 1 inspired) */}
+      {chrome && (
       <nav className="md:hidden fixed bottom-4 inset-x-3 z-40 pointer-events-none">
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="pointer-events-auto mx-auto max-w-md card-glass rounded-[28px] px-2 py-1.5 grid grid-cols-5 items-center shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)]"
+          className="pointer-events-auto mx-auto max-w-md card-glass rounded-[28px] px-2 py-1.5 grid grid-cols-6 items-center shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)]"
           style={{ background: "linear-gradient(160deg, rgba(20,22,28,0.92), rgba(8,9,12,0.88))" }}
         >
           {tabs.map((t) => {
@@ -137,8 +153,52 @@ export function AppShell() {
               </Link>
             );
           })}
+          <button onClick={() => setMoreOpen(true)}
+            className="relative flex flex-col items-center gap-1 py-2.5 text-muted-foreground/70">
+            <motion.div whileTap={{ scale: 0.85 }}><MoreHorizontal className="w-5 h-5" /></motion.div>
+            <span className="text-[9px] uppercase tracking-wider">More</span>
+          </button>
         </motion.div>
       </nav>
+      )}
+
+      {/* More sheet — gives mobile access to Camera/Comics/Challenges */}
+      <AnimatePresence>
+        {moreOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setMoreOpen(false)}
+            className="md:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end">
+            <motion.div initial={{ y: 60 }} animate={{ y: 0 }} exit={{ y: 60 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full bg-card border-t border-border rounded-t-3xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-2">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-display text-xl">More</h3>
+                <button onClick={() => setMoreOpen(false)}><X className="w-5 h-5" /></button>
+              </div>
+              {[
+                { to: "/camera", icon: Camera, label: "Camera" },
+                { to: "/comics", icon: BookOpen, label: "Library" },
+                { to: "/challenges", icon: Trophy, label: "Challenges" },
+              ].map((m) => (
+                <Link key={m.to} to={m.to} onClick={() => setMoreOpen(false)}
+                  className="flex items-center gap-3 p-3 rounded-2xl hover:bg-secondary/60">
+                  <span className="w-10 h-10 rounded-full bg-secondary grid place-items-center"><m.icon className="w-5 h-5" /></span>
+                  <span className="font-semibold">{m.label}</span>
+                </Link>
+              ))}
+              <button onClick={() => { setMoreOpen(false); setInboxOpen(true); }}
+                className="w-full text-left flex items-center gap-3 p-3 rounded-2xl hover:bg-secondary/60">
+                <span className="w-10 h-10 rounded-full bg-secondary grid place-items-center relative">
+                  <Bell className="w-5 h-5" />
+                  {unread > 0 && <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-snap text-snap-foreground text-[10px] font-bold grid place-items-center">{unread > 99 ? "99+" : unread}</span>}
+                </span>
+                <span className="font-semibold">Notifications</span>
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <CoachMark />
       <NotificationsInbox open={inboxOpen} onClose={() => setInboxOpen(false)} />
     </div>

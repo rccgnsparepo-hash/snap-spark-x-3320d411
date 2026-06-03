@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Avatar } from "@/components/Avatar";
 import { VoiceMessage } from "@/components/VoiceMessage";
 import { notify } from "@/lib/notify";
+import { ChatProfileSheet } from "@/components/ChatProfileSheet";
 
 type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string; read_at: string | null; reply_to_id: string | null; reply_snippet: string | null };
 type Profile = { id: string; handle: string; display_name: string; avatar_url: string | null };
@@ -24,6 +25,7 @@ export default function ThreadPage() {
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
   const [recording, setRecording] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const typingTimeoutRef = useRef<number | null>(null);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lastSentTypingRef = useRef<number>(0);
@@ -151,6 +153,7 @@ export default function ThreadPage() {
     <div className="flex flex-col h-[100dvh] relative" style={bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2">
         <Link to="/messages" className="md:hidden p-2 -ml-2"><ArrowLeft /></Link>
+        <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
         <Avatar url={other?.avatar_url} name={other?.display_name} size={36} />
         <div className="flex-1 min-w-0">
           <div className="font-semibold truncate">{other?.display_name ?? "…"}</div>
@@ -169,6 +172,7 @@ export default function ThreadPage() {
             )}
           </div>
         </div>
+        </button>
         <label className="p-2 cursor-pointer text-muted-foreground hover:text-foreground" title="Change background">
           <ImageIcon className="w-4 h-4" />
           <input type="file" hidden accept="image/*" onChange={(e) => e.target.files?.[0] && setBackground(e.target.files[0])} />
@@ -277,6 +281,8 @@ export default function ThreadPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ChatProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} peer={other} onDeleted={() => { setMsgs([]); }} />
     </div>
   );
 }
