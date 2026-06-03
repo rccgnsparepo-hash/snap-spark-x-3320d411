@@ -155,6 +155,66 @@ export default function HomePage() {
       {!searching && <StoriesBar onView={(groups, index) => setViewer({ groups, index })} />}
       {!searching && <Composer onPosted={load} />}
 
+      {/* Today's News (image-1 inspired) */}
+      {!searching && news.length > 0 && (chip === "For You" || chip === "News") && (
+        <section className="px-5 pt-5">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="font-display text-lg flex items-center gap-2"><TrendingUp className="w-4 h-4 text-snap" /> Today's News</h2>
+            <Link to="/news" className="text-xs text-snap font-semibold">See all →</Link>
+          </div>
+          <div className="space-y-3">
+            {news.slice(0, 3).map((n, i) => (
+              <motion.button
+                key={n.id}
+                initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                onClick={() => window.location.assign(`/news/read?u=${encodeURIComponent(n.url)}&t=${encodeURIComponent(n.title)}`)}
+                className="block w-full text-left card-glass rounded-2xl p-3 hover:bg-secondary/40 transition"
+              >
+                <div className="font-semibold leading-tight text-[15px] line-clamp-2">{n.title}</div>
+                <div className="text-[11px] text-muted-foreground mt-1.5">{formatDistanceToNowStrict(new Date(n.ts))} ago · {n.source}</div>
+              </motion.button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Trending in flick */}
+      {!searching && trending.length > 0 && (chip === "For You" || chip === "Trending") && (
+        <section className="px-5 pt-6">
+          <h2 className="font-display text-lg mb-2">Trending in flick</h2>
+          <div className="card-glass rounded-2xl divide-y divide-border/60">
+            {trending.slice(0, 5).map((p) => (
+              <Link key={`tr-${p.id}`} to={`/u/${p.author?.handle}`} className="flex items-center justify-between px-4 py-2.5 hover:bg-secondary/30">
+                <div className="min-w-0">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Trending · @{p.author?.handle}</div>
+                  <div className="text-sm font-semibold truncate">{p.content?.slice(0, 60) || "Untitled flick"}</div>
+                  <div className="text-[11px] text-muted-foreground">{likeCounts[p.id] ?? 0} likes</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Who to follow */}
+      {!searching && suggested.length > 0 && (
+        <section className="px-5 pt-6">
+          <h2 className="font-display text-lg mb-2 flex items-center gap-2"><UserPlus className="w-4 h-4 text-snap" /> Who to follow</h2>
+          <div className="card-glass rounded-2xl divide-y divide-border/60">
+            {suggested.slice(0, 4).map((s) => (
+              <div key={s.id} className="flex items-center gap-3 p-3">
+                <Link to={`/u/${s.handle}`}><Avatar url={s.avatar_url} name={s.display_name} size={40} /></Link>
+                <div className="flex-1 min-w-0">
+                  <Link to={`/u/${s.handle}`} className="block font-semibold text-sm truncate">{s.display_name}</Link>
+                  <div className="text-xs text-muted-foreground truncate">@{s.handle}{s.bio ? ` · ${s.bio}` : ""}</div>
+                </div>
+                <Link to={`/u/${s.handle}`} className="text-xs font-bold bg-foreground text-background px-3 py-1.5 rounded-full">View</Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Featured carousel */}
       {!searching && featured.length > 0 && chip === "Trending" && (
         <section className="px-5 pt-5">
