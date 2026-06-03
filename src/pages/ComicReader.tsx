@@ -1,33 +1,53 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Type, Plus, Minus } from "lucide-react";
 
-type Comic = { id: string; title: string; pages: string[] };
+type Book = { id: number; title: string; authors: { name: string }[]; formats: Record<string, string> };
 
 export default function ComicReaderPage() {
   const { id } = useParams<{ id: string }>();
-  const [comic, setComic] = useState<Comic | null>(null);
-  const [page, setPage] = useState(0);
+  const [book, setBook] = useState<Book | null>(null);
+  const [text, setText] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [size, setSize] = useState(1);
+
   useEffect(() => {
     if (!id) return;
-    supabase.from("comics").select("id,title,pages").eq("id", id).maybeSingle().then(({ data }) => setComic(data as Comic | null));
+    (async () => {
+      try {
+        const r = await fetch(`https://gutendex.com/books/${id}`);
+        const b = (await r.json()) as Book;
+        setBook(b);
+        const txtUrl = b.formats["text/plain; charset=utf-8"] || b.formats["text/plain"] || b.formats["text/html; charset=utf-8"] || b.formats["text/html"];
+        if (txtUrl) {
+          const proxied = `https://r.jina.ai/${txtUrl}`;
+          const tr = await fetch(proxied);
+          setText(await tr.text());
+        } else {
+          setText("This book has no readable text format available.");
+        }
+      } finally { setLoading(false); }
+    })();
   }, [id]);
-  if (!comic) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
+
+  if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading book…</div>;
+  if (!book) return <div className="min-h-screen grid place-items-center text-muted-foreground">Book not found.</div>;
+
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      <header className="flex items-center gap-3 px-4 py-3 text-white border-b border-white/10">
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="sticky top-0 z-20 bg-background/90 backdrop-blur border-b border-border flex items-center gap-3 px-4 py-3">
         <Link to="/comics"><ArrowLeft /></Link>
-        <h1 className="font-semibold flex-1 truncate">{comic.title}</h1>
-        <span className="text-xs">{page + 1}/{comic.pages.length}</span>
+        <div className="flex-1 min-w-0">
+          <h1 className="font-semibold truncate">{book.title}</h1>
+          <p className="text-[11px] text-muted-foreground truncate">{book.authors[0]?.name ?? "Unknown"}</p>
+        </div>
+        <button onClick={() => setSize((s) => Math.max(0.85, s - 0.1))} className="p-2"><Minus className="w-4 h-4" /></button>
+        <Type className="w-4 h-4 text-muted-foreground" />
+        <button onClick={() => setSize((s) => Math.min(1.6, s + 0.1))} className="p-2"><Plus className="w-4 h-4" /></button>
       </header>
-      <div className="flex-1 grid place-items-center p-4">
-        {comic.pages[page] ? <img src={comic.pages[page]} alt="" className="max-h-[80vh] max-w-full object-contain" /> : <p className="text-white">No pages</p>}
-      </div>
-      <div className="flex justify-between p-4 text-white">
-        <button disabled={page === 0} onClick={() => setPage(page - 1)} className="p-2 disabled:opacity-30"><ChevronLeft /></button>
-        <button disabled={page >= comic.pages.length - 1} onClick={() => setPage(page + 1)} className="p-2 disabled:opacity-30"><ChevronRight /></button>
-      </div>
+      <article className="prose prose-invert max-w-2xl mx-auto px-5 py-6 pb-40 whitespace-pre-wrap leading-relaxed" style={{ fontSize: `${size}rem` }}>
+        {text}
+      </article>
     </div>
   );
 }
