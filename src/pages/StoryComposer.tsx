@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
+import { UploadProgress, type UploadStage } from "@/components/UploadProgress";
 
 export default function StoryComposerPage() {
   const { user } = useAuth();
@@ -12,26 +13,39 @@ export default function StoryComposerPage() {
   const [tab, setTab] = useState<"photos" | "video">("photos");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  const [stages, setStages] = useState<UploadStage[]>([]);
 
   const submit = async () => {
     if (!user || files.length === 0) return;
     setBusy(true);
+    const initial: UploadStage[] = files.map((f) => ({ label: `Uploading ${f.name}`, progress: 4, status: "active" }));
+    setStages(initial);
     try {
-      for (const f of files) {
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
         if (f.size > 50 * 1024 * 1024) { toast.error(`${f.name} is over 50MB`); continue; }
         const ext = f.name.split(".").pop();
         const path = `${user.id}/story-${crypto.randomUUID()}.${ext}`;
+        const tick = setInterval(() => {
+          setStages((s) => s.map((x, idx) => idx === i && x.progress < 88 ? { ...x, progress: x.progress + 6 } : x));
+        }, 250);
         const { error: upErr } = await supabase.storage.from("media").upload(path, f, { contentType: f.type });
+        clearInterval(tick);
         if (upErr) throw upErr;
+        setStages((s) => s.map((x, idx) => idx === i ? { ...x, progress: 95, label: `Publishing ${f.name}` } : x));
         const url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
         const isVideo = f.type.startsWith("video/");
         const { error } = await supabase.from("stories").insert({ author_id: user.id, image_url: url, media_type: isVideo ? "video" : "image" });
         if (error) throw error;
+        setStages((s) => s.map((x, idx) => idx === i ? { ...x, progress: 100, status: "done", label: `Posted ${f.name}` } : x));
       }
-      toast.success(`Posted ${files.length} ${files.length === 1 ? "story" : "stories"}`);
       notify({ kind: "story", message: `${files.length} new ${files.length === 1 ? "story" : "stories"}`, actor: { id: user.id } });
-      nav("/");
-    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+      setTimeout(() => { setStages([]); nav("/"); }, 900);
+    } catch (e) {
+      setStages((s) => s.map((x) => x.status === "active" ? { ...x, status: "error", detail: "failed" } : x));
+      toast.error((e as Error).message);
+      setTimeout(() => setStages([]), 4000);
+    } finally { setBusy(false); }
   };
 
   return (
@@ -60,6 +74,7 @@ export default function StoryComposerPage() {
           ))}
         </div>
       )}
+      <UploadProgress stages={stages} onDismiss={() => setStages([])} />
     </div>
   );
 }

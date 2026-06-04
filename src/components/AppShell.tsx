@@ -1,8 +1,7 @@
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Home, MessageCircle, User, LogOut, BookOpen, Newspaper, Plus, Bell, Camera, MoreHorizontal, Trophy, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Avatar } from "./Avatar";
-import { AnimatedBg } from "./AnimatedBg";
 import { AnimatePresence, motion } from "framer-motion";
 import { CoachMark } from "./CoachMark";
 import { NotificationsInbox } from "./NotificationsInbox";
@@ -19,6 +18,7 @@ const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[]
 
 export function AppShell() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { profile, signOut, user } = useAuth();
   const [inboxOpen, setInboxOpen] = useState(false);
   const [unread, setUnread] = useState(0);
@@ -27,6 +27,10 @@ export function AppShell() {
   // hide top bar & dock when inside an open chat thread
   const inThread = /^\/messages\/[^/]+/.test(pathname);
   const chrome = !inThread;
+
+  // Top-level tab order for swipe navigation
+  const tabOrder = ["/", "/news", "/stories/new", "/messages", "/profile"];
+  const currentIdx = tabOrder.findIndex((t) => t === "/" ? pathname === "/" : pathname.startsWith(t));
 
   useEffect(() => {
     if (!user) return;
@@ -43,7 +47,6 @@ export function AppShell() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col md:flex-row relative bg-background">
-      <AnimatedBg />
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border p-6 sticky top-0 h-screen bg-background/80 backdrop-blur z-20">
         <Link to="/" className="font-display text-3xl mb-10 tracking-tight">flick<span className="text-snap">.</span></Link>
@@ -97,17 +100,19 @@ export function AppShell() {
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, x: 40 }}
+            initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -40 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            drag={chrome ? "x" : false}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            drag={chrome && currentIdx >= 0 ? "x" : false}
             dragDirectionLock
             dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.18}
+            dragElastic={0.22}
             onDragEnd={(_, info) => {
-              if (info.offset.x > 110 && Math.abs(info.velocity.x) > 50) window.history.back();
-              else if (info.offset.x < -110 && Math.abs(info.velocity.x) > 50) window.history.forward();
+              const dx = info.offset.x, vx = info.velocity.x;
+              if (currentIdx < 0) return;
+              if ((dx > 80 || vx > 400) && currentIdx > 0) navigate(tabOrder[currentIdx - 1]);
+              else if ((dx < -80 || vx < -400) && currentIdx < tabOrder.length - 1) navigate(tabOrder[currentIdx + 1]);
             }}
           >
             <Outlet />
