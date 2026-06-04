@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       challenge_submissions: {
         Row: {
           challenge_id: string
@@ -41,6 +59,8 @@ export type Database = {
       chat_settings: {
         Row: {
           bg_url: string | null
+          disappearing_seconds: number | null
+          font_family: string
           font_scale: number
           owner_id: string
           peer_id: string
@@ -49,6 +69,8 @@ export type Database = {
         }
         Insert: {
           bg_url?: string | null
+          disappearing_seconds?: number | null
+          font_family?: string
           font_scale?: number
           owner_id: string
           peer_id: string
@@ -57,6 +79,8 @@ export type Database = {
         }
         Update: {
           bg_url?: string | null
+          disappearing_seconds?: number | null
+          font_family?: string
           font_scale?: number
           owner_id?: string
           peer_id?: string
@@ -181,7 +205,7 @@ export type Database = {
           content: string | null
           created_at: string
           delivered_at: string | null
-          expires_at: string
+          expires_at: string | null
           id: string
           media_type: string | null
           media_url: string | null
@@ -195,7 +219,7 @@ export type Database = {
           content?: string | null
           created_at?: string
           delivered_at?: string | null
-          expires_at?: string
+          expires_at?: string | null
           id?: string
           media_type?: string | null
           media_url?: string | null
@@ -209,7 +233,7 @@ export type Database = {
           content?: string | null
           created_at?: string
           delivered_at?: string | null
-          expires_at?: string
+          expires_at?: string | null
           id?: string
           media_type?: string | null
           media_url?: string | null
@@ -235,6 +259,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      muted_chats: {
+        Row: {
+          created_at: string
+          owner_id: string
+          peer_id: string
+        }
+        Insert: {
+          created_at?: string
+          owner_id: string
+          peer_id: string
+        }
+        Update: {
+          created_at?: string
+          owner_id?: string
+          peer_id?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -358,6 +400,33 @@ export type Database = {
           emoji?: string
           post_id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          reporter_id: string
+          target_kind: string
+          target_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reporter_id: string
+          target_kind: string
+          target_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          reporter_id?: string
+          target_kind?: string
+          target_user_id?: string | null
         }
         Relationships: []
       }
