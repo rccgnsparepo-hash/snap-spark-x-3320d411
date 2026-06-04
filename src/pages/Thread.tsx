@@ -21,6 +21,9 @@ export default function ThreadPage() {
   const [text, setText] = useState("");
   const [bg, setBg] = useState<string | null>(null);
   const [fontScale, setFontScale] = useState<number>(1);
+  const [fontFamily, setFontFamily] = useState<string>("system");
+  const [disappearSec, setDisappearSec] = useState<number | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [replyTo, setReplyTo] = useState<Msg | null>(null);
   const [recording, setRecording] = useState(false);
@@ -44,11 +47,14 @@ export default function ThreadPage() {
   useEffect(() => {
     if (!userId) return;
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle().then(({ data }) => setOther(data as Profile | null));
-    if (user) supabase.from("chat_settings").select("bg_url, font_scale").eq("owner_id", user.id).eq("peer_id", userId).maybeSingle().then(({ data }) => {
-      const row = data as { bg_url: string | null; font_scale: number | null } | null;
+    if (user) supabase.from("chat_settings").select("bg_url, font_scale, font_family, disappearing_seconds").eq("owner_id", user.id).eq("peer_id", userId).maybeSingle().then(({ data }) => {
+      const row = data as { bg_url: string | null; font_scale: number | null; font_family: string | null; disappearing_seconds: number | null } | null;
       setBg(row?.bg_url ?? null);
       setFontScale(row?.font_scale ?? 1);
+      setFontFamily(row?.font_family ?? "system");
+      setDisappearSec(row?.disappearing_seconds ?? null);
     });
+    if (user) supabase.from("blocks").select("blocked_id").eq("blocker_id", user.id).eq("blocked_id", userId).maybeSingle().then(({ data }) => setBlocked(!!data));
     load();
     const ch = supabase.channel(`dm-${userId}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, load).subscribe();
     // Typing presence — pair-stable channel name (sorted ids)
@@ -79,12 +85,14 @@ export default function ThreadPage() {
 
   const send = async () => {
     if (!user || !userId || !text.trim()) return;
+    if (blocked) { toast.error("You have blocked this user. Unblock to send."); return; }
     const content = text.trim();
     const reply_to_id = replyTo?.id ?? null;
     const reply_snippet = replyTo ? (replyTo.content ?? (replyTo.media_type ? `📎 ${replyTo.media_type}` : "media")).slice(0, 140) : null;
     setText("");
     setReplyTo(null);
-    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content, reply_to_id, reply_snippet });
+    const expires_at = disappearSec ? new Date(Date.now() + disappearSec * 1000).toISOString() : null;
+    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content, reply_to_id, reply_snippet, expires_at });
     notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId }, recipients: [userId], url: `/messages/${user.id}` });
   };
 
@@ -99,6 +107,7 @@ export default function ThreadPage() {
 
   const uploadAndSend = async (f: File, type: "audio" | "file") => {
     if (!user || !userId) return;
+    if (blocked) { toast.error("You have blocked this user."); return; }
     if (f.size > 25 * 1024 * 1024) { toast.error("File over 25MB"); return; }
     const detected = type === "audio" ? "audio"
       : f.type.startsWith("image/") ? "image"
@@ -109,7 +118,8 @@ export default function ThreadPage() {
     const { error: e1 } = await supabase.storage.from("media").upload(path, f, { contentType: f.type });
     if (e1) { toast.error(e1.message); return; }
     const url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
-    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected });
+    const expires_at = disappearSec ? new Date(Date.now() + disappearSec * 1000).toISOString() : null;
+    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected, expires_at });
   };
 
   const recordVoice = async () => {
@@ -149,8 +159,14 @@ export default function ThreadPage() {
     await supabase.from("chat_settings").upsert({ owner_id: user.id, peer_id: userId, font_scale: v, updated_at: new Date().toISOString() }, { onConflict: "owner_id,peer_id" });
   };
 
+  const saveFontFamily = async (v: string) => {
+    setFontFamily(v);
+    if (!user || !userId) return;
+    await supabase.from("chat_settings").upsert({ owner_id: user.id, peer_id: userId, font_family: v, updated_at: new Date().toISOString() }, { onConflict: "owner_id,peer_id" });
+  };
+
   return (
-    <div className="flex flex-col h-[100dvh] relative" style={bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>
+    <div className="flex flex-col h-[100dvh] relative" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2">
         <Link to="/messages" className="md:hidden p-2 -ml-2"><ArrowLeft /></Link>
         <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
@@ -168,7 +184,9 @@ export default function ThreadPage() {
                 typing…
               </span>
             ) : (
-              <span className="text-snap flex items-center gap-1"><Timer className="w-3 h-3" /> Disappears in 24h</span>
+              <span className="text-muted-foreground flex items-center gap-1">
+                {disappearSec ? <><Timer className="w-3 h-3 text-snap" /> Disappears in {disappearSec >= 86400 ? `${disappearSec/86400}d` : disappearSec >= 3600 ? `${disappearSec/3600}h` : `${disappearSec/60}m`}</> : "Tap for profile"}
+              </span>
             )}
           </div>
         </div>
@@ -276,6 +294,14 @@ export default function ThreadPage() {
                 <input type="range" min={0.85} max={1.4} step={0.05} value={fontScale} onChange={(e) => saveFontScale(Number(e.target.value))} className="w-full accent-snap mt-2" />
                 <div className="flex justify-between text-xs text-muted-foreground"><span>A</span><span style={{ fontSize: `${fontScale}rem` }}>Aa preview</span><span className="text-lg">A</span></div>
               </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Font family</label>
+                <select value={fontFamily} onChange={(e) => saveFontFamily(e.target.value)}
+                  className="w-full mt-2 bg-input border border-border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring">
+                  {FONT_OPTIONS.map((f) => <option key={f.id} value={f.id} style={{ fontFamily: FONT_MAP[f.id] }}>{f.label}</option>)}
+                </select>
+                <div className="mt-2 p-3 rounded-xl bg-secondary/50 text-sm" style={{ fontFamily: FONT_MAP[fontFamily] }}>The quick brown fox jumps over the lazy dog.</div>
+              </div>
               <p className="text-xs text-muted-foreground">Settings save automatically per chat.</p>
             </motion.div>
           </motion.div>
@@ -286,3 +312,42 @@ export default function ThreadPage() {
     </div>
   );
 }
+
+const FONT_OPTIONS: { id: string; label: string }[] = [
+  { id: "system", label: "System default" },
+  { id: "trebuchet", label: "Trebuchet MS" },
+  { id: "comic", label: "Comic Sans MS" },
+  { id: "georgia", label: "Georgia" },
+  { id: "times", label: "Times New Roman" },
+  { id: "courier", label: "Courier New" },
+  { id: "verdana", label: "Verdana" },
+  { id: "tahoma", label: "Tahoma" },
+  { id: "arial", label: "Arial" },
+  { id: "helvetica", label: "Helvetica" },
+  { id: "palatino", label: "Palatino" },
+  { id: "garamond", label: "Garamond" },
+  { id: "impact", label: "Impact" },
+  { id: "lucida", label: "Lucida Console" },
+  { id: "monaco", label: "Monaco" },
+  { id: "brush", label: "Brush Script MT" },
+  { id: "copperplate", label: "Copperplate" },
+];
+const FONT_MAP: Record<string, string> = {
+  system: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+  trebuchet: '"Trebuchet MS", sans-serif',
+  comic: '"Comic Sans MS", "Comic Sans", cursive',
+  georgia: 'Georgia, serif',
+  times: '"Times New Roman", Times, serif',
+  courier: '"Courier New", Courier, monospace',
+  verdana: 'Verdana, Geneva, sans-serif',
+  tahoma: 'Tahoma, Geneva, sans-serif',
+  arial: 'Arial, sans-serif',
+  helvetica: 'Helvetica, Arial, sans-serif',
+  palatino: '"Palatino Linotype", Palatino, serif',
+  garamond: 'Garamond, serif',
+  impact: 'Impact, Charcoal, sans-serif',
+  lucida: '"Lucida Console", Monaco, monospace',
+  monaco: 'Monaco, Consolas, monospace',
+  brush: '"Brush Script MT", cursive',
+  copperplate: 'Copperplate, "Copperplate Gothic Light", serif',
+};
