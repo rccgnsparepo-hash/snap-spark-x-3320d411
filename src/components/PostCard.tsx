@@ -172,7 +172,7 @@ export function PostCard({ post }: { post: PostRow }) {
             <MoreHorizontal className="w-4 h-4" />
           </button>
         </div>
-        {post.content && <p className="mt-1 whitespace-pre-wrap break-words">{post.content}</p>}
+        {post.content && <p className="mt-1 whitespace-pre-wrap break-anywhere">{post.content}</p>}
         {mediaSrc && (
           <div className="mt-3 relative group">
             {post.media_type === "video" && (
