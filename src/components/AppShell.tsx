@@ -86,7 +86,7 @@ export function AppShell() {
       </aside>
 
       {/* Main */}
-      <main className={`flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-[100dvh] ${chrome ? "pb-32 md:pb-0" : ""} bg-background relative z-10`}>
+      <main className={`flex-1 max-w-2xl w-full mx-auto border-x border-border min-h-[100dvh] ${chrome ? "pb-32 md:pb-0" : ""} bg-background relative z-10 overflow-x-hidden`}>
         {/* Mobile top bar — bell only (logo & nav live in bottom dock) */}
         {chrome && (
         <div className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-2.5 bg-background/85 backdrop-blur border-b border-border">
@@ -104,6 +104,7 @@ export function AppShell() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="w-full overflow-x-hidden"
             drag={chrome && currentIdx >= 0 ? "x" : false}
             dragDirectionLock
             dragConstraints={{ left: 0, right: 0 }}
