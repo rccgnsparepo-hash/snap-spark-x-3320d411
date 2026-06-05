@@ -271,7 +271,7 @@ export default function ThreadPage() {
           <button onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
-      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="sticky bottom-0 z-20 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] mb-24 md:mb-0 rounded-t-2xl md:rounded-none flex gap-2 items-center">
+      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="sticky bottom-0 z-20 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2 items-center">
         <button type="button" onClick={() => fileRef.current?.click()} className="text-muted-foreground p-2"><Paperclip className="w-5 h-5" /></button>
         <input ref={fileRef} type="file" hidden onChange={(e) => e.target.files?.[0] && uploadAndSend(e.target.files[0], "file")} />
         <button type="button" onClick={recordVoice} className={`p-2 rounded-full ${recording ? "bg-red-500 text-white animate-pulse" : "text-muted-foreground"}`}><Mic className="w-5 h-5" /></button>
