@@ -45,17 +45,30 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user?.id]);
 
-  const filtered = useMemo(() => items.filter((n) => {
+  // Dedupe near-duplicate notifications (same kind + actor + target within 60s)
+  const deduped = useMemo(() => {
+    const seen = new Map<string, Notif>();
+    for (const n of items) {
+      const target = (n.data as { post_id?: string; recipient_id?: string })?.post_id
+        ?? (n.data as { recipient_id?: string })?.recipient_id ?? "";
+      const bucket = Math.floor(new Date(n.created_at).getTime() / 60000);
+      const key = `${n.kind}:${n.actor_id ?? "_"}:${target}:${bucket}`;
+      if (!seen.has(key)) seen.set(key, n);
+    }
+    return [...seen.values()];
+  }, [items]);
+  const filtered = useMemo(() => deduped.filter((n) => {
     if (filter === "All") return true;
     if (filter === "Stories") return n.kind === "story";
     if (filter === "Mentions") return n.kind === "mention";
     if (filter === "Posts") return n.kind === "post" || n.kind === "like" || n.kind === "comment";
     if (filter === "Messages") return n.kind === "message";
     return true;
-  }), [items, filter]);
+  }), [deduped, filter]);
 
   const markAllRead = async () => {
     if (!user) return;
+    setItems((xs) => xs.map((x) => x.read_at ? x : { ...x, read_at: new Date().toISOString() }));
     await supabase.from("notifications").update({ read_at: new Date().toISOString() })
       .eq("user_id", user.id).is("read_at", null);
   };
@@ -109,8 +122,12 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
                       {unread && <span className="w-2 h-2 rounded-full bg-snap mt-2" />}
                     </div>
                   );
+                  const markOne = () => {
+                    setItems((xs) => xs.map((x) => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x));
+                    supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
+                  };
                   return (
-                    <li key={n.id} onClick={() => supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id)}>
+                    <li key={n.id} onClick={markOne}>
                       {n.url ? <Link to={n.url} onClick={onClose}>{inner}</Link> : inner}
                     </li>
                   );
