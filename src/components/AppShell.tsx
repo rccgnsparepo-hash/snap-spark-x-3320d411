@@ -7,6 +7,7 @@ import { CoachMark } from "./CoachMark";
 import { NotificationsInbox } from "./NotificationsInbox";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { syncExistingPush, ensurePushSW } from "@/lib/push";
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
   { to: "/", icon: Home, label: "Home" },
@@ -34,6 +35,9 @@ export function AppShell() {
 
   useEffect(() => {
     if (!user) return;
+    // Register push SW and silently re-attach subscription if permission already granted.
+    ensurePushSW();
+    syncExistingPush(user.id);
     const load = async () => {
       const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).is("read_at", null);
