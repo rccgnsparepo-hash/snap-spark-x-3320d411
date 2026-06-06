@@ -102,8 +102,12 @@ export default function ThreadPage() {
     setText("");
     setReplyTo(null);
     const expires_at = disappearSec ? new Date(Date.now() + disappearSec * 1000).toISOString() : null;
-    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content, reply_to_id, reply_snippet, expires_at });
-    notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId }, recipients: [userId], url: `/messages/${user.id}` });
+    const optimistic: Msg = { id: `local-${crypto.randomUUID()}`, sender_id: user.id, recipient_id: userId, content, media_url: null, media_type: null, created_at: new Date().toISOString(), expires_at: expires_at ?? "", read_at: null, reply_to_id, reply_snippet };
+    setMsgs((rows) => [...rows, optimistic]);
+    const { data, error } = await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content, reply_to_id, reply_snippet, expires_at }).select("*").single();
+    if (error) { setMsgs((rows) => rows.filter((m) => m.id !== optimistic.id)); toast.error(error.message); return; }
+    setMsgs((rows) => rows.map((m) => m.id === optimistic.id ? data as Msg : m));
+    notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId }, recipients: [userId], url: `/messages/${user.id}`, dedupe_id: `message:${user.id}:${data.id}` });
   };
 
   const onType = (v: string) => {
@@ -129,7 +133,12 @@ export default function ThreadPage() {
     if (e1) { toast.error(e1.message); return; }
     const url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
     const expires_at = disappearSec ? new Date(Date.now() + disappearSec * 1000).toISOString() : null;
-    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected, expires_at });
+    const optimistic: Msg = { id: `local-${crypto.randomUUID()}`, sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected, created_at: new Date().toISOString(), expires_at: expires_at ?? "", read_at: null, reply_to_id: null, reply_snippet: null };
+    setMsgs((rows) => [...rows, optimistic]);
+    const { data, error } = await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected, expires_at }).select("*").single();
+    if (error) { setMsgs((rows) => rows.filter((m) => m.id !== optimistic.id)); toast.error(error.message); return; }
+    setMsgs((rows) => rows.map((m) => m.id === optimistic.id ? data as Msg : m));
+    notify({ kind: "message", message: detected === "audio" ? "Voice message" : f.name, actor: { id: user.id }, data: { recipient_id: userId }, recipients: [userId], url: `/messages/${user.id}`, dedupe_id: `message:${user.id}:${data.id}` });
   };
 
   const recordVoice = async () => {
