@@ -17,7 +17,10 @@ export default function MessagesPage() {
 
   const loadUnread = async () => {
     if (!user) return;
-    const { data } = await supabase.from("messages").select("sender_id, read_at").eq("recipient_id", user.id).is("read_at", null).gt("expires_at", new Date().toISOString());
+    const now = new Date().toISOString();
+    const { data } = await supabase.from("messages").select("sender_id, read_at")
+      .eq("recipient_id", user.id).is("read_at", null)
+      .or(`expires_at.is.null,expires_at.gt.${now}`);
     const counts: Record<string, number> = {};
     (data ?? []).forEach((m: { sender_id: string }) => { counts[m.sender_id] = (counts[m.sender_id] ?? 0) + 1; });
     setUnread(counts);
@@ -27,7 +30,7 @@ export default function MessagesPage() {
     if (!user) return;
     supabase.from("profiles").select("*").neq("id", user.id).limit(100).then(({ data }) => setPeople((data ?? []) as Profile[]));
     loadUnread();
-    const ch = supabase.channel("dm-unread").on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadUnread).subscribe();
+    const ch = supabase.channel(`dm-unread-${user.id}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadUnread).subscribe();
     const cull = setInterval(loadUnread, 30000);
     return () => { supabase.removeChannel(ch); clearInterval(cull); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -36,8 +39,8 @@ export default function MessagesPage() {
   const filtered = people.filter((p) => !q || p.handle.toLowerCase().includes(q.toLowerCase()) || p.display_name.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="grid md:grid-cols-[320px_1fr] min-h-[100dvh]">
-      <aside className={`${showList ? "block" : "hidden md:block"} border-r border-border bg-background pb-32 md:pb-0`}>
+    <div className="grid md:grid-cols-[320px_minmax(0,1fr)] h-[100dvh] md:h-screen min-w-0 overflow-hidden">
+      <aside className={`${showList ? "block" : "hidden md:block"} border-r border-border bg-background pb-32 md:pb-0 overflow-y-auto min-w-0`}>
         <header className="sticky top-0 bg-background/80 backdrop-blur border-b border-border p-4">
           <h1 className="font-display text-2xl mb-3">DMs</h1>
           <div className="relative">
@@ -45,7 +48,7 @@ export default function MessagesPage() {
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by handle"
               className="w-full bg-input rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
           </div>
-          <p className="text-[11px] mt-2 text-snap">Messages disappear after 24h</p>
+          <p className="text-[11px] mt-2 text-snap">Realtime conversations</p>
         </header>
         <ul>
           {filtered.map((p) => (
@@ -63,7 +66,7 @@ export default function MessagesPage() {
           ))}
         </ul>
       </aside>
-      <section className={`${showList ? "hidden md:block" : "block"}`}>
+      <section className={`${showList ? "hidden md:block" : "block"} min-w-0 overflow-hidden`}>
         {pathname === "/messages" ? (
           <div className="hidden md:flex flex-col items-center justify-center h-full text-muted-foreground gap-3 p-10">
             <MessageCircle className="w-12 h-12 text-snap" />

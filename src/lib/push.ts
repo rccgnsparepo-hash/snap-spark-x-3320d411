@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const VAPID_PUBLIC_KEY =
-  "BIqG281guCFenl07b-qRd7Q77ralHY1S4xSVQeaND7JDvQRPwK0TL57EtXYFyLqWOtP7F3MQRaWYt1aWs5MNGSY";
+  "BIWfMYFZBQjZMYlW5k3-GSdKd9GMN0t7Q4H2oteK9DKRXvRXleCB4NUSHTMx5h6g-FgksmzDZ_QU3JtiiKPn4s8";
 
 function urlBase64ToUint8Array(base64: string) {
   const padding = "=".repeat((4 - (base64.length % 4)) % 4);
@@ -56,11 +56,18 @@ export async function requestAndSubscribePush(userId: string): Promise<boolean> 
     if (perm === "default") perm = await Notification.requestPermission();
     if (perm !== "granted") return false;
 
+    const appKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
     let sub = await reg.pushManager.getSubscription();
+    const existingKey = sub?.options.applicationServerKey ? bufToBase64Url(sub.options.applicationServerKey) : "";
+    if (sub && existingKey && existingKey !== VAPID_PUBLIC_KEY) {
+      await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint).eq("user_id", userId);
+      await sub.unsubscribe();
+      sub = null;
+    }
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        applicationServerKey: appKey,
       });
     }
     const json = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };

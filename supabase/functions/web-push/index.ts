@@ -2,7 +2,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
-const VAPID_PUBLIC = 'BIqG281guCFenl07b-qRd7Q77ralHY1S4xSVQeaND7JDvQRPwK0TL57EtXYFyLqWOtP7F3MQRaWYt1aWs5MNGSY';
+const VAPID_PUBLIC = 'BIWfMYFZBQjZMYlW5k3-GSdKd9GMN0t7Q4H2oteK9DKRXvRXleCB4NUSHTMx5h6g-FgksmzDZ_QU3JtiiKPn4s8';
 const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@flick.app';
 
@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
         sent++;
       } catch (e: unknown) {
         const code = (e as { statusCode?: number })?.statusCode;
-        if (code === 404 || code === 410) stale.push(s.id);
+        if (code === 400 || code === 403 || code === 404 || code === 410) stale.push(s.id);
         else console.warn('push send failed', code, (e as Error).message);
       }
     }));
