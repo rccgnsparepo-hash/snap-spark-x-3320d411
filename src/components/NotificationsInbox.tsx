@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Link } from "react-router-dom";
+import { requestAndSubscribePush, getPushPermission } from "@/lib/push";
+import { toast } from "sonner";
 
 type Notif = {
   id: string; user_id: string; actor_id: string | null; kind: string;
@@ -29,6 +31,14 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const { user } = useAuth();
   const [items, setItems] = useState<Notif[]>([]);
   const [filter, setFilter] = useState<Filter>("All");
+  const [pushPerm, setPushPerm] = useState<NotificationPermission>("default");
+  useEffect(() => { getPushPermission().then(setPushPerm); }, [open]);
+  const enablePush = async () => {
+    if (!user) return;
+    const ok = await requestAndSubscribePush(user.id);
+    setPushPerm(await getPushPermission());
+    toast[ok ? "success" : "error"](ok ? "Push notifications enabled" : "Could not enable push");
+  };
 
   const load = async () => {
     if (!user) return;
@@ -89,6 +99,9 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
             <header className="p-4 border-b border-border flex items-center gap-2">
               <Bell className="w-5 h-5 text-snap" />
               <h2 className="font-display text-lg flex-1">Notifications</h2>
+              {pushPerm !== "granted" && (
+                <button onClick={enablePush} className="text-xs px-2 py-1 rounded-full bg-snap text-snap-foreground font-semibold">Enable push</button>
+              )}
               <button onClick={markAllRead} className="text-xs text-muted-foreground hover:text-foreground">Mark read</button>
               <button onClick={clearAll} className="p-1.5 text-muted-foreground hover:text-destructive" aria-label="Clear all"><Trash2 className="w-4 h-4" /></button>
               <button onClick={onClose} className="p-1.5"><X className="w-5 h-5" /></button>

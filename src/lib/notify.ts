@@ -11,6 +11,8 @@ export async function notify(input: {
   data?: Record<string, unknown>;
   /** Specific recipients to drop into the in-app inbox. Empty/undefined = broadcast (just webhook/onesignal). */
   recipients?: string[];
+  /** Optional stable dedupe id so the same logical event won't show twice. */
+  dedupe_id?: string;
 }) {
   try {
     // In-app inbox rows (only for known recipients, never the actor themselves).
@@ -37,7 +39,9 @@ export async function notify(input: {
         }));
       if (rows.length) await supabase.from("notifications").insert(rows);
     }
-    await supabase.functions.invoke("notify", { body: input });
+    await supabase.functions.invoke("notify", {
+      body: { ...input, recipients: input.recipients ?? [] },
+    });
   } catch (e) {
     console.warn("notify failed", e);
   }
