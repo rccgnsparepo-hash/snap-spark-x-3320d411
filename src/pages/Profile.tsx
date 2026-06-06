@@ -89,17 +89,17 @@ export default function ProfilePage() {
       <ProfileSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* Split-screen hero: left noir identity, right warm stats */}
-      <section className="grid grid-cols-5 min-h-[380px] overflow-hidden">
+      <section className="grid grid-cols-1 sm:grid-cols-5 min-h-[380px] overflow-hidden">
         <motion.div
           initial={{ x: -40, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="surface-noir col-span-3 relative p-5 flex flex-col justify-between"
+          className="surface-noir sm:col-span-3 relative p-5 flex flex-col justify-between min-w-0"
         >
           <div className="absolute -left-20 -top-20 w-72 h-72 rounded-full bg-snap/15 blur-3xl" />
           <div className="relative">
             <span className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground">Profile</span>
-            <h2 className="font-display text-3xl mt-2 leading-tight">{profile?.display_name}</h2>
+            <h2 className="font-display text-3xl mt-2 leading-tight break-anywhere">{profile?.display_name ?? "Your profile"}</h2>
             <p className="text-snap text-sm font-semibold mt-1">@{profile?.handle}</p>
           </div>
 
@@ -129,7 +129,7 @@ export default function ProfilePage() {
           initial={{ x: 40, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="surface-warm col-span-2 relative p-5 flex flex-col justify-between"
+          className="surface-warm sm:col-span-2 relative p-5 flex flex-col justify-between min-w-0"
         >
           <div>
             <span className="text-[10px] uppercase tracking-[0.3em] opacity-70">Stats</span>
