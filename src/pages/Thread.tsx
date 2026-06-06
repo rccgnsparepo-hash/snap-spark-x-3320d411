@@ -185,8 +185,8 @@ export default function ThreadPage() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] relative" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2">
+    <div className="flex flex-col h-[100dvh] md:h-screen relative min-w-0 overflow-hidden" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
+      <header className="shrink-0 sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2 min-w-0">
         <Link to="/messages" className="md:hidden p-2 -ml-2"><ArrowLeft /></Link>
         <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
         <Avatar url={other?.avatar_url} name={other?.display_name} size={36} />
@@ -218,7 +218,7 @@ export default function ThreadPage() {
           <Settings2 className="w-4 h-4" />
         </button>
       </header>
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2" style={{ fontSize: `${fontScale}rem` }}>
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-6 space-y-2 min-h-0" style={{ fontSize: `${fontScale}rem` }}>
         <AnimatePresence initial={false}>
           {msgs.map((m) => {
             const mine = m.sender_id === user?.id;
@@ -237,7 +237,7 @@ export default function ThreadPage() {
                 onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 60) setReplyTo(m); }}
                 className={`flex ${mine ? "justify-end" : "justify-start"}`}
               >
-                <div className={`max-w-[78%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
+                <div className={`max-w-[84%] md:max-w-[68%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
                   {m.reply_to_id && m.reply_snippet && (
                     <button
                       onClick={() => {
@@ -268,7 +268,7 @@ export default function ThreadPage() {
                       <span className="truncate">{m.content || "file"}</span>
                     </a>
                   ) : (
-                    <div className={`px-4 py-2 ${mine ? "text-primary-foreground bg-primary/90" : ""}`}>{m.content}</div>
+                    <div className={`px-4 py-2 break-anywhere ${mine ? "text-primary-foreground bg-primary/90" : ""}`}>{m.content}</div>
                   )}
                   {m.media_url && m.content && (m.media_type === "image" || m.media_type === "video") && (
                     <div className="px-3 py-1.5 text-xs text-muted-foreground truncate">{m.content}</div>
@@ -290,11 +290,11 @@ export default function ThreadPage() {
           <button onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
-      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="sticky bottom-0 z-20 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2 items-center">
+      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="shrink-0 sticky bottom-0 z-20 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2 items-center min-w-0">
         <button type="button" onClick={() => fileRef.current?.click()} className="text-muted-foreground p-2"><Paperclip className="w-5 h-5" /></button>
         <input ref={fileRef} type="file" hidden onChange={(e) => e.target.files?.[0] && uploadAndSend(e.target.files[0], "file")} />
         <button type="button" onClick={recordVoice} className={`p-2 rounded-full ${recording ? "bg-red-500 text-white animate-pulse" : "text-muted-foreground"}`}><Mic className="w-5 h-5" /></button>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Send a disappearing message…" className="flex-1 bg-input rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring" />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Send a message…" className="flex-1 min-w-0 bg-input rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring" />
         <button type="submit" disabled={!text.trim()} className="w-12 h-12 rounded-full bg-snap text-snap-foreground grid place-items-center disabled:opacity-50"><Send className="w-5 h-5" /></button>
       </form>
 
