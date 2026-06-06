@@ -8,7 +8,7 @@ import { notify } from "@/lib/notify";
 import { UploadProgress, type UploadStage } from "@/components/UploadProgress";
 
 export default function StoryComposerPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const nav = useNavigate();
   const [tab, setTab] = useState<"photos" | "video">("photos");
   const [files, setFiles] = useState<File[]>([]);
@@ -39,7 +39,15 @@ export default function StoryComposerPage() {
         if (error) throw error;
         setStages((s) => s.map((x, idx) => idx === i ? { ...x, progress: 100, status: "done", label: `Posted ${f.name}` } : x));
       }
-      notify({ kind: "story", message: `${files.length} new ${files.length === 1 ? "story" : "stories"}`, actor: { id: user.id } });
+      const { data: recipients } = await supabase.from("profiles").select("id").neq("id", user.id).limit(500);
+      notify({
+        kind: "story",
+        message: `${files.length} new ${files.length === 1 ? "story" : "stories"}`,
+        actor: { id: user.id, handle: profile?.handle, display_name: profile?.display_name },
+        recipients: (recipients ?? []).map((r) => r.id),
+        url: "/",
+        dedupe_id: `story:${user.id}:${Date.now()}`,
+      });
       setTimeout(() => { setStages([]); nav("/"); }, 900);
     } catch (e) {
       setStages((s) => s.map((x) => x.status === "active" ? { ...x, status: "error", detail: "failed" } : x));

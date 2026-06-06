@@ -79,13 +79,18 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const markAllRead = async () => {
     if (!user) return;
     setItems((xs) => xs.map((x) => x.read_at ? x : { ...x, read_at: new Date().toISOString() }));
+    window.dispatchEvent(new Event("flick:notifications-updated"));
     await supabase.from("notifications").update({ read_at: new Date().toISOString() })
       .eq("user_id", user.id).is("read_at", null);
+    window.dispatchEvent(new Event("flick:notifications-updated"));
   };
 
   const clearAll = async () => {
     if (!user) return;
+    setItems([]);
+    window.dispatchEvent(new Event("flick:notifications-updated"));
     await supabase.from("notifications").delete().eq("user_id", user.id);
+    window.dispatchEvent(new Event("flick:notifications-updated"));
   };
 
   return (
@@ -137,6 +142,7 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
                   );
                   const markOne = () => {
                     setItems((xs) => xs.map((x) => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x));
+                    window.dispatchEvent(new Event("flick:notifications-updated"));
                     supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
                   };
                   return (

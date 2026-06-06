@@ -10,7 +10,7 @@ import { VoiceMessage } from "@/components/VoiceMessage";
 import { notify } from "@/lib/notify";
 import { ChatProfileSheet } from "@/components/ChatProfileSheet";
 
-type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string; read_at: string | null; reply_to_id: string | null; reply_snippet: string | null };
+type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string | null; read_at: string | null; reply_to_id: string | null; reply_snippet: string | null };
 type Profile = { id: string; handle: string; display_name: string; avatar_url: string | null };
 
 export default function ThreadPage() {
@@ -38,10 +38,15 @@ export default function ThreadPage() {
 
   const load = async () => {
     if (!user || !userId) return;
-    const { data } = await supabase.from("messages").select("*").or(`and(sender_id.eq.${user.id},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${user.id})`).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: true });
+    const now = new Date().toISOString();
+    const { data } = await supabase.from("messages").select("*")
+      .or(`and(sender_id.eq.${user.id},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${user.id})`)
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
+      .order("created_at", { ascending: true });
     setMsgs((data ?? []) as Msg[]);
     // mark inbound as read
-    await supabase.from("messages").update({ read_at: new Date().toISOString() }).eq("recipient_id", user.id).eq("sender_id", userId).is("read_at", null);
+    setMsgs((rows) => rows.map((m) => m.recipient_id === user.id && m.sender_id === userId && !m.read_at ? { ...m, read_at: now } : m));
+    await supabase.from("messages").update({ read_at: now }).eq("recipient_id", user.id).eq("sender_id", userId).is("read_at", null);
   };
 
   useEffect(() => {
@@ -56,7 +61,12 @@ export default function ThreadPage() {
     });
     if (user) supabase.from("blocks").select("blocked_id").eq("blocker_id", user.id).eq("blocked_id", userId).maybeSingle().then(({ data }) => setBlocked(!!data));
     load();
-    const ch = supabase.channel(`dm-${userId}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, load).subscribe();
+    const ch = supabase.channel(`dm-${[user?.id, userId].sort().join("-")}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, (payload) => {
+      const row = (payload.new ?? payload.old) as Partial<Msg>;
+      if (!row || !user) return;
+      const relevant = (row.sender_id === user.id && row.recipient_id === userId) || (row.sender_id === userId && row.recipient_id === user.id);
+      if (relevant) load();
+    }).subscribe();
     // Typing presence — pair-stable channel name (sorted ids)
     if (user) {
       const pair = [user.id, userId].sort().join("--");
@@ -71,7 +81,7 @@ export default function ThreadPage() {
       }).subscribe();
       typingChannelRef.current = typing;
     }
-    const cull = setInterval(() => setMsgs((m) => m.filter((x) => new Date(x.expires_at) > new Date())), 5000);
+    const cull = setInterval(() => setMsgs((m) => m.filter((x) => !x.expires_at || new Date(x.expires_at) > new Date())), 5000);
     return () => {
       supabase.removeChannel(ch);
       if (typingChannelRef.current) supabase.removeChannel(typingChannelRef.current);
@@ -92,8 +102,12 @@ export default function ThreadPage() {
     setText("");
     setReplyTo(null);
     const expires_at = disappearSec ? new Date(Date.now() + disappearSec * 1000).toISOString() : null;
-    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content, reply_to_id, reply_snippet, expires_at });
-    notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId }, recipients: [userId], url: `/messages/${user.id}` });
+    const optimistic: Msg = { id: `local-${crypto.randomUUID()}`, sender_id: user.id, recipient_id: userId, content, media_url: null, media_type: null, created_at: new Date().toISOString(), expires_at: expires_at ?? "", read_at: null, reply_to_id, reply_snippet };
+    setMsgs((rows) => [...rows, optimistic]);
+    const { data, error } = await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content, reply_to_id, reply_snippet, expires_at }).select("*").single();
+    if (error) { setMsgs((rows) => rows.filter((m) => m.id !== optimistic.id)); toast.error(error.message); return; }
+    setMsgs((rows) => rows.map((m) => m.id === optimistic.id ? data as Msg : m));
+    notify({ kind: "message", message: content.slice(0, 120), actor: { id: user.id }, data: { recipient_id: userId }, recipients: [userId], url: `/messages/${user.id}`, dedupe_id: `message:${user.id}:${data.id}` });
   };
 
   const onType = (v: string) => {
@@ -119,7 +133,12 @@ export default function ThreadPage() {
     if (e1) { toast.error(e1.message); return; }
     const url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
     const expires_at = disappearSec ? new Date(Date.now() + disappearSec * 1000).toISOString() : null;
-    await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected, expires_at });
+    const optimistic: Msg = { id: `local-${crypto.randomUUID()}`, sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected, created_at: new Date().toISOString(), expires_at: expires_at ?? "", read_at: null, reply_to_id: null, reply_snippet: null };
+    setMsgs((rows) => [...rows, optimistic]);
+    const { data, error } = await supabase.from("messages").insert({ sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected, expires_at }).select("*").single();
+    if (error) { setMsgs((rows) => rows.filter((m) => m.id !== optimistic.id)); toast.error(error.message); return; }
+    setMsgs((rows) => rows.map((m) => m.id === optimistic.id ? data as Msg : m));
+    notify({ kind: "message", message: detected === "audio" ? "Voice message" : f.name, actor: { id: user.id }, data: { recipient_id: userId }, recipients: [userId], url: `/messages/${user.id}`, dedupe_id: `message:${user.id}:${data.id}` });
   };
 
   const recordVoice = async () => {
@@ -166,8 +185,8 @@ export default function ThreadPage() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] relative" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2">
+    <div className="flex flex-col h-[100dvh] md:h-screen relative min-w-0 overflow-hidden" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
+      <header className="shrink-0 sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2 min-w-0">
         <Link to="/messages" className="md:hidden p-2 -ml-2"><ArrowLeft /></Link>
         <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
         <Avatar url={other?.avatar_url} name={other?.display_name} size={36} />
@@ -199,7 +218,7 @@ export default function ThreadPage() {
           <Settings2 className="w-4 h-4" />
         </button>
       </header>
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-2" style={{ fontSize: `${fontScale}rem` }}>
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 py-6 space-y-2 min-h-0" style={{ fontSize: `${fontScale}rem` }}>
         <AnimatePresence initial={false}>
           {msgs.map((m) => {
             const mine = m.sender_id === user?.id;
@@ -218,7 +237,7 @@ export default function ThreadPage() {
                 onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 60) setReplyTo(m); }}
                 className={`flex ${mine ? "justify-end" : "justify-start"}`}
               >
-                <div className={`max-w-[78%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
+                <div className={`max-w-[84%] md:max-w-[68%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
                   {m.reply_to_id && m.reply_snippet && (
                     <button
                       onClick={() => {
@@ -249,7 +268,7 @@ export default function ThreadPage() {
                       <span className="truncate">{m.content || "file"}</span>
                     </a>
                   ) : (
-                    <div className={`px-4 py-2 ${mine ? "text-primary-foreground bg-primary/90" : ""}`}>{m.content}</div>
+                    <div className={`px-4 py-2 break-anywhere ${mine ? "text-primary-foreground bg-primary/90" : ""}`}>{m.content}</div>
                   )}
                   {m.media_url && m.content && (m.media_type === "image" || m.media_type === "video") && (
                     <div className="px-3 py-1.5 text-xs text-muted-foreground truncate">{m.content}</div>
@@ -271,11 +290,11 @@ export default function ThreadPage() {
           <button onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
-      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="sticky bottom-0 z-20 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2 items-center">
+      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="shrink-0 sticky bottom-0 z-20 bg-background/95 backdrop-blur border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex gap-2 items-center min-w-0">
         <button type="button" onClick={() => fileRef.current?.click()} className="text-muted-foreground p-2"><Paperclip className="w-5 h-5" /></button>
         <input ref={fileRef} type="file" hidden onChange={(e) => e.target.files?.[0] && uploadAndSend(e.target.files[0], "file")} />
         <button type="button" onClick={recordVoice} className={`p-2 rounded-full ${recording ? "bg-red-500 text-white animate-pulse" : "text-muted-foreground"}`}><Mic className="w-5 h-5" /></button>
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Send a disappearing message…" className="flex-1 bg-input rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring" />
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Send a message…" className="flex-1 min-w-0 bg-input rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-ring" />
         <button type="submit" disabled={!text.trim()} className="w-12 h-12 rounded-full bg-snap text-snap-foreground grid place-items-center disabled:opacity-50"><Send className="w-5 h-5" /></button>
       </form>
 
