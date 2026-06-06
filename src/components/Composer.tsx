@@ -80,7 +80,15 @@ export function Composer({ onPosted }: { onPosted: () => void }) {
       });
       if (error) throw error;
       setStages((s) => s.map((x, i) => i === 1 ? { ...x, progress: 100, status: "done" } : x));
-      notify({ kind: "post", message: text.trim().slice(0, 120) || "Posted a flick", actor: { id: user.id, handle: profile?.handle, display_name: profile?.display_name } });
+      const { data: recipients } = await supabase.from("profiles").select("id").neq("id", user.id).limit(500);
+      notify({
+        kind: "post",
+        message: text.trim().slice(0, 120) || "Posted a flick",
+        actor: { id: user.id, handle: profile?.handle, display_name: profile?.display_name },
+        recipients: (recipients ?? []).map((r) => r.id),
+        url: profile?.handle ? `/u/${profile.handle}` : "/",
+        dedupe_id: `post:${user.id}:${Date.now()}`,
+      });
       toast.success("Flick posted");
       setTimeout(() => setStages([]), 1800);
       setText(""); setFile(null); setPreview(null);

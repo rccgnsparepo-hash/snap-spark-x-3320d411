@@ -10,7 +10,7 @@ import { VoiceMessage } from "@/components/VoiceMessage";
 import { notify } from "@/lib/notify";
 import { ChatProfileSheet } from "@/components/ChatProfileSheet";
 
-type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string; read_at: string | null; reply_to_id: string | null; reply_snippet: string | null };
+type Msg = { id: string; sender_id: string; recipient_id: string; content: string | null; media_url: string | null; media_type: string | null; created_at: string; expires_at: string | null; read_at: string | null; reply_to_id: string | null; reply_snippet: string | null };
 type Profile = { id: string; handle: string; display_name: string; avatar_url: string | null };
 
 export default function ThreadPage() {
