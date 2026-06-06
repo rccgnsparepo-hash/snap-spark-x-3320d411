@@ -38,10 +38,15 @@ export default function ThreadPage() {
 
   const load = async () => {
     if (!user || !userId) return;
-    const { data } = await supabase.from("messages").select("*").or(`and(sender_id.eq.${user.id},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${user.id})`).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: true });
+    const now = new Date().toISOString();
+    const { data } = await supabase.from("messages").select("*")
+      .or(`and(sender_id.eq.${user.id},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${user.id})`)
+      .or(`expires_at.is.null,expires_at.gt.${now}`)
+      .order("created_at", { ascending: true });
     setMsgs((data ?? []) as Msg[]);
     // mark inbound as read
-    await supabase.from("messages").update({ read_at: new Date().toISOString() }).eq("recipient_id", user.id).eq("sender_id", userId).is("read_at", null);
+    setMsgs((rows) => rows.map((m) => m.recipient_id === user.id && m.sender_id === userId && !m.read_at ? { ...m, read_at: now } : m));
+    await supabase.from("messages").update({ read_at: now }).eq("recipient_id", user.id).eq("sender_id", userId).is("read_at", null);
   };
 
   useEffect(() => {
@@ -56,7 +61,12 @@ export default function ThreadPage() {
     });
     if (user) supabase.from("blocks").select("blocked_id").eq("blocker_id", user.id).eq("blocked_id", userId).maybeSingle().then(({ data }) => setBlocked(!!data));
     load();
-    const ch = supabase.channel(`dm-${userId}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, load).subscribe();
+    const ch = supabase.channel(`dm-${[user?.id, userId].sort().join("-")}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, (payload) => {
+      const row = (payload.new ?? payload.old) as Partial<Msg>;
+      if (!row || !user) return;
+      const relevant = (row.sender_id === user.id && row.recipient_id === userId) || (row.sender_id === userId && row.recipient_id === user.id);
+      if (relevant) load();
+    }).subscribe();
     // Typing presence — pair-stable channel name (sorted ids)
     if (user) {
       const pair = [user.id, userId].sort().join("--");
@@ -71,7 +81,7 @@ export default function ThreadPage() {
       }).subscribe();
       typingChannelRef.current = typing;
     }
-    const cull = setInterval(() => setMsgs((m) => m.filter((x) => new Date(x.expires_at) > new Date())), 5000);
+    const cull = setInterval(() => setMsgs((m) => m.filter((x) => !x.expires_at || new Date(x.expires_at) > new Date())), 5000);
     return () => {
       supabase.removeChannel(ch);
       if (typingChannelRef.current) supabase.removeChannel(typingChannelRef.current);
