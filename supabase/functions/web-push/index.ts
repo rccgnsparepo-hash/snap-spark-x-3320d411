@@ -2,7 +2,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
-const VAPID_PUBLIC = 'BIWfMYFZBQjZMYlW5k3-GSdKd9GMN0t7Q4H2oteK9DKRXvRXleCB4NUSHTMx5h6g-FgksmzDZ_QU3JtiiKPn4s8';
+const VAPID_PUBLIC = 'BN5VjE0Ct9ULD8vKkDojHlHI_4nBR8JNEGT9_lDFSL4KTKk41a39gGFTBBC_w-XULbnxt0txBXBUDNpt3PcvXMI';
 const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY') ?? '';
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') ?? 'mailto:admin@flick.app';
 
