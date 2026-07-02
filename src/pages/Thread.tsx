@@ -47,6 +47,10 @@ export default function ThreadPage() {
     // mark inbound as read
     setMsgs((rows) => rows.map((m) => m.recipient_id === user.id && m.sender_id === userId && !m.read_at ? { ...m, read_at: now } : m));
     await supabase.from("messages").update({ read_at: now }).eq("recipient_id", user.id).eq("sender_id", userId).is("read_at", null);
+    // Also clear the notifications-bell counter for DM notifications from this peer.
+    await supabase.from("notifications").update({ read_at: now })
+      .eq("user_id", user.id).eq("actor_id", userId).eq("kind", "message").is("read_at", null);
+    window.dispatchEvent(new Event("flick:notifications-updated"));
   };
 
   useEffect(() => {

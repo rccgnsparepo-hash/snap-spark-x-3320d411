@@ -91,7 +91,7 @@ export function AppShell() {
       </aside>
 
       {/* Main */}
-      <main className={`flex-1 ${inThread ? "md:max-w-none" : "max-w-2xl"} w-full mx-auto border-x border-border min-h-[100dvh] ${chrome ? "pb-32 md:pb-0" : ""} bg-background relative z-10 overflow-x-hidden`}>
+      <main className={`flex-1 ${inThread ? "md:max-w-none md:h-screen md:overflow-hidden" : "max-w-2xl min-h-[100dvh]"} w-full mx-auto ${inThread ? "" : "border-x border-border"} ${chrome ? "pb-32 md:pb-0" : ""} bg-background relative z-10 overflow-x-hidden min-w-0`}>
         {/* Mobile top bar — bell only (logo & nav live in bottom dock) */}
         {chrome && (
         <div className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-2.5 bg-background/85 backdrop-blur border-b border-border">
