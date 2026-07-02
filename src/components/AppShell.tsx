@@ -8,6 +8,7 @@ import { NotificationsInbox } from "./NotificationsInbox";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { syncExistingPush, ensurePushSW } from "@/lib/push";
+import { initNativePush } from "@/lib/nativePush";
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
   { to: "/", icon: Home, label: "Home" },
@@ -38,6 +39,7 @@ export function AppShell() {
     // Register push SW and silently re-attach subscription if permission already granted.
     ensurePushSW();
     syncExistingPush(user.id);
+    initNativePush(user.id);
     const load = async () => {
       const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).is("read_at", null);
@@ -52,8 +54,8 @@ export function AppShell() {
 
   return (
     <div className="min-h-[100dvh] flex flex-col md:flex-row relative bg-background">
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-border p-6 sticky top-0 h-screen bg-background/80 backdrop-blur z-20">
+      {/* Desktop sidebar (≥1024px) */}
+      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border p-6 sticky top-0 h-screen bg-background/80 backdrop-blur z-20">
         <Link to="/" className="font-display text-3xl mb-10 tracking-tight">flick<span className="text-snap">.</span></Link>
         <nav className="flex flex-col gap-1">
           {tabs.map((t) => {
@@ -91,10 +93,10 @@ export function AppShell() {
       </aside>
 
       {/* Main */}
-      <main className={`flex-1 ${inThread ? "md:max-w-none md:h-screen md:overflow-hidden" : "max-w-2xl min-h-[100dvh]"} w-full mx-auto ${inThread ? "" : "border-x border-border"} ${chrome ? "pb-32 md:pb-0" : ""} bg-background relative z-10 overflow-x-hidden min-w-0`}>
-        {/* Mobile top bar — bell only (logo & nav live in bottom dock) */}
+      <main className={`flex-1 ${inThread ? "lg:max-w-none lg:h-screen lg:overflow-hidden" : "max-w-2xl min-h-[100dvh]"} w-full mx-auto ${inThread ? "" : "border-x border-border"} ${chrome ? "pb-32 lg:pb-0" : ""} bg-background relative z-10 overflow-x-hidden min-w-0`}>
+        {/* Mobile/tablet top bar — bell only (logo & nav live in bottom dock) */}
         {chrome && (
-        <div className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-2.5 bg-background/85 backdrop-blur border-b border-border">
+        <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-2.5 bg-background/85 backdrop-blur border-b border-border">
           <Link to="/" className="font-display text-xl tracking-tight">flick<span className="text-snap">.</span></Link>
           <button onClick={() => setInboxOpen(true)} className="relative w-9 h-9 rounded-full bg-secondary grid place-items-center" aria-label="Notifications">
             <Bell className="w-4 h-4" />
@@ -126,9 +128,9 @@ export function AppShell() {
         </AnimatePresence>
       </main>
 
-      {/* Mobile floating dock (image 1 inspired) */}
+      {/* Mobile/tablet floating dock */}
       {chrome && (
-      <nav className="md:hidden fixed bottom-4 inset-x-3 z-40 pointer-events-none">
+      <nav className="lg:hidden fixed bottom-4 inset-x-3 z-40 pointer-events-none">
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -178,7 +180,7 @@ export function AppShell() {
         {moreOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setMoreOpen(false)}
-            className="md:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end">
+            className="lg:hidden fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end">
             <motion.div initial={{ y: 60 }} animate={{ y: 0 }} exit={{ y: 60 }}
               onClick={(e) => e.stopPropagation()}
               className="w-full bg-card border-t border-border rounded-t-3xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-2">
