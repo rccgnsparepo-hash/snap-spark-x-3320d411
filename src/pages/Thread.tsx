@@ -189,9 +189,9 @@ export default function ThreadPage() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] md:h-screen relative min-w-0 overflow-hidden" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
+    <div className="flex flex-col h-[100dvh] lg:h-screen relative min-w-0 overflow-hidden" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
       <header className="shrink-0 sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2 min-w-0">
-        <Link to="/messages" className="md:hidden p-2 -ml-2"><ArrowLeft /></Link>
+        <Link to="/messages" className="lg:hidden p-2 -ml-2"><ArrowLeft /></Link>
         <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
         <Avatar url={other?.avatar_url} name={other?.display_name} size={36} />
         <div className="flex-1 min-w-0">
@@ -241,7 +241,7 @@ export default function ThreadPage() {
                 onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 60) setReplyTo(m); }}
                 className={`flex ${mine ? "justify-end" : "justify-start"}`}
               >
-                <div className={`max-w-[84%] md:max-w-[68%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
+                <div className={`max-w-[84%] lg:max-w-[68%] card-glass rounded-3xl overflow-hidden shadow-lg ${mine ? "rounded-br-md ring-1 ring-snap/40" : "rounded-bl-md"}`}>
                   {m.reply_to_id && m.reply_snippet && (
                     <button
                       onClick={() => {
@@ -278,7 +278,7 @@ export default function ThreadPage() {
                     <div className="px-3 py-1.5 text-xs text-muted-foreground truncate">{m.content}</div>
                   )}
                 </div>
-                <button onClick={() => setReplyTo(m)} className="self-center mx-1 opacity-0 hover:opacity-100 md:opacity-40 md:hover:opacity-100 text-muted-foreground" aria-label="Reply">
+                <button onClick={() => setReplyTo(m)} className="self-center mx-1 opacity-0 hover:opacity-100 lg:opacity-40 lg:hover:opacity-100 text-muted-foreground" aria-label="Reply">
                   <Reply className="w-4 h-4" />
                 </button>
               </motion.div>
