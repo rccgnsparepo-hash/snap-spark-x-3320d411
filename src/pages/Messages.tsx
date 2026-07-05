@@ -39,8 +39,8 @@ export default function MessagesPage() {
   const filtered = people.filter((p) => !q || p.handle.toLowerCase().includes(q.toLowerCase()) || p.display_name.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] h-[100dvh] lg:h-screen min-w-0 overflow-hidden">
-      <aside className={`${showList ? "block" : "hidden lg:block"} border-r border-border bg-background pb-32 lg:pb-0 overflow-y-auto min-w-0`}>
+    <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] h-full min-w-0 overflow-hidden">
+      <aside className={`${showList ? "block" : "hidden lg:block"} border-r border-border bg-background pb-28 lg:pb-0 overflow-y-auto min-w-0 min-h-0`}>
         <header className="sticky top-0 bg-background/80 backdrop-blur border-b border-border p-4">
           <h1 className="font-display text-2xl mb-3">DMs</h1>
           <div className="relative">
@@ -66,7 +66,7 @@ export default function MessagesPage() {
           ))}
         </ul>
       </aside>
-      <section className={`${showList ? "hidden lg:block" : "block"} min-w-0 overflow-hidden`}>
+      <section className={`${showList ? "hidden lg:block" : "block"} min-w-0 min-h-0 overflow-hidden`}>
         {pathname === "/messages" ? (
           <div className="hidden lg:flex flex-col items-center justify-center h-full text-muted-foreground gap-3 p-10">
             <MessageCircle className="w-12 h-12 text-snap" />
