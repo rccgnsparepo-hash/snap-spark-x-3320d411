@@ -78,18 +78,18 @@ export default function ProfilePage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border px-4 py-3 flex items-center justify-between">
-        <h1 className="font-display text-xl tracking-tight">@{profile?.handle}</h1>
-        <div className="flex items-center gap-3">
-          <button aria-label="Share" className="text-muted-foreground hover:text-foreground"><Share2 className="w-5 h-5" /></button>
-          <button onClick={signOut} aria-label="Sign out" className="text-muted-foreground hover:text-foreground"><LogOut className="w-5 h-5" /></button>
-          <button aria-label="Settings" onClick={() => setSettingsOpen(true)} className="text-muted-foreground hover:text-foreground"><Settings className="w-5 h-5" /></button>
+      <header className="bg-background/80 backdrop-blur-xl border-b border-border px-4 py-3 flex items-center justify-between gap-3">
+        <h1 className="font-display text-xl tracking-tight truncate min-w-0">@{profile?.handle ?? "you"}</h1>
+        <div className="flex items-center gap-1 shrink-0">
+          <button aria-label="Share" className="w-11 h-11 grid place-items-center text-muted-foreground hover:text-foreground"><Share2 className="w-5 h-5" /></button>
+          <button onClick={signOut} aria-label="Sign out" className="w-11 h-11 grid place-items-center text-muted-foreground hover:text-foreground"><LogOut className="w-5 h-5" /></button>
+          <button aria-label="Settings" onClick={() => setSettingsOpen(true)} className="w-11 h-11 grid place-items-center text-muted-foreground hover:text-foreground"><Settings className="w-5 h-5" /></button>
         </div>
       </header>
       <ProfileSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* Split-screen hero: left noir identity, right warm stats */}
-      <section className="grid grid-cols-1 sm:grid-cols-5 min-h-[380px] overflow-hidden">
+      <section className="grid grid-cols-1 sm:grid-cols-5 sm:min-h-[380px] overflow-hidden">
         <motion.div
           initial={{ x: -40, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -160,9 +160,9 @@ export default function ProfilePage() {
         </motion.div>
       </section>
 
-      <nav className="sticky top-[57px] z-20 bg-background/90 backdrop-blur border-y border-border grid grid-cols-3">
+      <nav className="bg-background/90 backdrop-blur border-y border-border grid grid-cols-3">
         {([["grid", Grid3x3], ["reels", Film], ["saved", Bookmark]] as const).map(([k, Icon]) => (
-          <button key={k} onClick={() => setTab(k)} className={`py-3 grid place-items-center border-b-2 transition ${tab === k ? "border-snap text-snap" : "border-transparent text-muted-foreground"}`}>
+          <button key={k} aria-label={k} onClick={() => setTab(k)} className={`min-h-[48px] grid place-items-center border-b-2 transition ${tab === k ? "border-snap text-snap" : "border-transparent text-muted-foreground"}`}>
             <Icon className="w-5 h-5" />
           </button>
         ))}
