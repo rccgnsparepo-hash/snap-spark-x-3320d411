@@ -117,7 +117,7 @@ export function AppShell() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="w-full overflow-x-hidden"
+            className={`w-full overflow-x-hidden ${fullBleed ? "h-full" : ""}`}
             drag={chrome && currentIdx >= 0 ? "x" : false}
             dragDirectionLock
             dragConstraints={{ left: 0, right: 0 }}
