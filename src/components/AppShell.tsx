@@ -29,6 +29,8 @@ export function AppShell() {
   // hide top bar & dock when inside an open chat thread
   const inThread = /^\/messages\/[^/]+/.test(pathname);
   const chrome = !inThread;
+  // Pages that manage their own viewport height (no extra main padding/max-width)
+  const fullBleed = inThread || pathname === "/messages";
 
   // Top-level tab order for swipe navigation
   const tabOrder = ["/", "/news", "/stories/new", "/messages", "/profile"];
@@ -93,7 +95,11 @@ export function AppShell() {
       </aside>
 
       {/* Main */}
-      <main className={`flex-1 ${inThread ? "lg:max-w-none lg:h-screen lg:overflow-hidden" : "max-w-2xl min-h-[100dvh]"} w-full mx-auto ${inThread ? "" : "border-x border-border"} ${chrome ? "pb-32 lg:pb-0" : ""} bg-background relative z-10 overflow-x-hidden min-w-0`}>
+      <main className={`flex-1 w-full mx-auto bg-background relative z-10 overflow-x-hidden min-w-0 ${
+        fullBleed
+          ? "lg:max-w-none h-[100dvh] lg:h-screen overflow-hidden"
+          : `max-w-2xl min-h-[100dvh] border-x border-border ${chrome ? "pb-28 lg:pb-0" : ""}`
+      }`}>
         {/* Mobile/tablet top bar — bell only (logo & nav live in bottom dock) */}
         {chrome && (
         <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-2.5 bg-background/85 backdrop-blur border-b border-border">
