@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { syncExistingPush, ensurePushSW } from "@/lib/push";
 import { initNativePush } from "@/lib/nativePush";
+import { useLenis } from "@/lib/useLenis";
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
   { to: "/", icon: Home, label: "Home" },
@@ -20,6 +21,7 @@ const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[]
 
 export function AppShell() {
   const { pathname } = useLocation();
+  useLenis();
   const navigate = useNavigate();
   const { profile, signOut, user } = useAuth();
   const [inboxOpen, setInboxOpen] = useState(false);
