@@ -60,17 +60,44 @@ Deno.serve(async (req) => {
       tasks.push(fetch(NOTIFY_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
     }
     if (ONESIGNAL_APP_ID && ONESIGNAL_REST_API_KEY) {
+      // Native push via OneSignal. Prefer targeted external_user_ids (= supabase user id)
+      // when we have recipients; fall back to broadcast only when explicitly requested.
+      const targets = (body.recipients ?? []).filter((r) => r && r !== body.actor?.id);
+      const channelByKind: Record<string, string> = {
+        message: 'messages', comment: 'messages',
+        like: 'likes', post: 'posts', story: 'stories',
+      };
+      const androidChannel = channelByKind[body.kind] ?? 'posts';
+      const resourceId = (body.data as { post_id?: string; story_id?: string; message_id?: string; news_id?: string } | undefined);
+      const deepLinkData = {
+        type: body.kind,
+        resourceId: resourceId?.post_id ?? resourceId?.story_id ?? resourceId?.message_id ?? resourceId?.news_id ?? null,
+        senderId: body.actor?.id ?? null,
+        deepLink: body.url ?? null,
+        title,
+        body: message,
+        timestamp: payload.at,
+      };
+      const osPayload: Record<string, unknown> = {
+        app_id: ONESIGNAL_APP_ID,
+        headings: { en: title },
+        contents: { en: message || title },
+        url: body.url ?? undefined,
+        data: deepLinkData,
+        android_channel_id: androidChannel,
+        collapse_id: body.dedupe_id ?? undefined,
+      };
+      if (targets.length) {
+        // OneSignal v11 SDK uses aliases; older API accepts include_external_user_ids too.
+        osPayload.include_aliases = { external_id: targets };
+        osPayload.target_channel = 'push';
+      } else {
+        osPayload.included_segments = ['Subscribed Users'];
+      }
       tasks.push(fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Basic ${ONESIGNAL_REST_API_KEY}` },
-        body: JSON.stringify({
-          app_id: ONESIGNAL_APP_ID,
-          included_segments: ['All'],
-          headings: { en: title },
-          contents: { en: message || title },
-          url: body.url ?? undefined,
-          data: payload,
-        }),
+        body: JSON.stringify(osPayload),
       }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
     }
     const results = await Promise.all(tasks);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Bell, Search, Bookmark, X, Heart, MessageCircle, Share2 } from "lucide-react";
+import { Search, Bookmark, X, Heart, MessageCircle, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -123,8 +123,8 @@ export default function NewsPage() {
           <h1 className="font-display text-2xl tracking-tight">News <span className="tape-lime">live</span></h1>
           <p className="text-[11px] text-muted-foreground mt-0.5">Stay informed without leaving Flick.</p>
         </div>
-        <button onClick={() => { setShowInbox(true); markSeen(); }} aria-label="Notifications" className="relative w-10 h-10 rounded-full bg-secondary grid place-items-center">
-          <Bell className="w-5 h-5" />
+        <button onClick={() => { setShowInbox(true); markSeen(); }} aria-label="Saved articles" className="relative w-10 h-10 rounded-full bg-secondary grid place-items-center">
+          <Bookmark className="w-5 h-5" />
           {unread > 0 && (
             <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-snap text-snap-foreground text-[10px] font-bold grid place-items-center">{unread > 99 ? "99+" : unread}</span>
           )}
