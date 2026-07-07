@@ -8,7 +8,8 @@ import { NotificationsInbox } from "./NotificationsInbox";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { syncExistingPush, ensurePushSW } from "@/lib/push";
-import { initNativePush } from "@/lib/nativePush";
+import { initOneSignal, loginPushUser, logoutPushUser } from "@/lib/native/onesignal";
+import { bindNotificationRouter } from "@/lib/native/appLifecycle";
 import { useLenis } from "@/lib/useLenis";
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
@@ -40,10 +41,11 @@ export function AppShell() {
 
   useEffect(() => {
     if (!user) return;
-    // Register push SW and silently re-attach subscription if permission already granted.
+    // Web push: register the SW and silently re-attach if permission already granted.
     ensurePushSW();
     syncExistingPush(user.id);
-    initNativePush(user.id);
+    // Native push (Capacitor + OneSignal): init once, then bind this user id.
+    void initOneSignal().then(() => loginPushUser(user.id));
     const load = async () => {
       const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).is("read_at", null);
@@ -55,6 +57,17 @@ export function AppShell() {
       { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, load).subscribe();
     return () => { window.removeEventListener("flick:notifications-updated", load); supabase.removeChannel(ch); };
   }, [user?.id]);
+
+  // Detach OneSignal external id when the user signs out.
+  useEffect(() => {
+    if (user) return;
+    void logoutPushUser();
+  }, [user]);
+
+  // Route notification taps (foreground OneSignal click OR cold-start appUrlOpen).
+  useEffect(() => {
+    return bindNotificationRouter(navigate);
+  }, [navigate]);
 
   return (
     <div className="min-h-[100dvh] flex flex-col md:flex-row relative bg-background">
