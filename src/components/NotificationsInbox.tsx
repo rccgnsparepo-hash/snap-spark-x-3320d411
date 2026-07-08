@@ -5,7 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Link } from "react-router-dom";
-import { requestAndSubscribePush, getPushPermission } from "@/lib/push";
+import { requestWebPushPermission, linkWebPushUser } from "@/lib/webPush";
+
+const readPerm = (): NotificationPermission =>
+  typeof Notification === "undefined" ? "denied" : Notification.permission;
 import { toast } from "sonner";
 
 type Notif = {
