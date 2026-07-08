@@ -34,28 +34,8 @@ Deno.serve(async (req) => {
     const message = body.message ?? '';
     const payload = { kind: body.kind, title, message, url: body.url ?? null, actor: body.actor ?? null, data: body.data ?? {}, at: new Date().toISOString() };
     const tasks: Promise<unknown>[] = [];
-    // Targeted web push to specific recipients (excludes the actor).
-    if (body.recipients?.length) {
-      const targets = body.recipients.filter((r) => r && r !== body.actor?.id);
-      if (targets.length) {
-        tasks.push(fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/web-push`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-          },
-          body: JSON.stringify({
-            user_ids: targets,
-            title,
-            body: message,
-            url: body.url ?? '/',
-            kind: body.kind,
-            dedupe_id: body.dedupe_id ?? `${body.kind}:${body.actor?.id ?? ''}:${(body.data as { post_id?: string })?.post_id ?? ''}`,
-            data: body.data ?? {},
-          }),
-        }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
-      }
-    }
+    // NOTE: legacy VAPID web-push has been removed. OneSignal is the ONLY push provider
+    // (installed PWA + browser + native Android), targeted by external_id = supabase user id.
     if (NOTIFY_WEBHOOK_URL) {
       tasks.push(fetch(NOTIFY_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
     }

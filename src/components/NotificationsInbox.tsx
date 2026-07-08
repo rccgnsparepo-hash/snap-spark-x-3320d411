@@ -5,7 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Link } from "react-router-dom";
-import { requestAndSubscribePush, getPushPermission } from "@/lib/push";
+import { requestWebPushPermission, linkWebPushUser } from "@/lib/webPush";
+
+const readPerm = (): NotificationPermission =>
+  typeof Notification === "undefined" ? "denied" : Notification.permission;
 import { toast } from "sonner";
 
 type Notif = {
@@ -32,11 +35,12 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const [items, setItems] = useState<Notif[]>([]);
   const [filter, setFilter] = useState<Filter>("All");
   const [pushPerm, setPushPerm] = useState<NotificationPermission>("default");
-  useEffect(() => { getPushPermission().then(setPushPerm); }, [open]);
+  useEffect(() => { setPushPerm(readPerm()); }, [open]);
   const enablePush = async () => {
     if (!user) return;
-    const ok = await requestAndSubscribePush(user.id);
-    setPushPerm(await getPushPermission());
+    const ok = await requestWebPushPermission();
+    if (ok) await linkWebPushUser(user.id);
+    setPushPerm(readPerm());
     toast[ok ? "success" : "error"](ok ? "Push notifications enabled" : "Could not enable push");
   };
 
