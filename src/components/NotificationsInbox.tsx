@@ -35,11 +35,12 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const [items, setItems] = useState<Notif[]>([]);
   const [filter, setFilter] = useState<Filter>("All");
   const [pushPerm, setPushPerm] = useState<NotificationPermission>("default");
-  useEffect(() => { getPushPermission().then(setPushPerm); }, [open]);
+  useEffect(() => { setPushPerm(readPerm()); }, [open]);
   const enablePush = async () => {
     if (!user) return;
-    const ok = await requestAndSubscribePush(user.id);
-    setPushPerm(await getPushPermission());
+    const ok = await requestWebPushPermission();
+    if (ok) await linkWebPushUser(user.id);
+    setPushPerm(readPerm());
     toast[ok ? "success" : "error"](ok ? "Push notifications enabled" : "Could not enable push");
   };
 
