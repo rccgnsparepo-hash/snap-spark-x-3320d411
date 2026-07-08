@@ -7,7 +7,7 @@ import { CoachMark } from "./CoachMark";
 import { NotificationsInbox } from "./NotificationsInbox";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { syncExistingPush, ensurePushSW } from "@/lib/push";
+import { initWebPush, linkWebPushUser, unlinkWebPushUser } from "@/lib/webPush";
 import { initOneSignal, loginPushUser, logoutPushUser } from "@/lib/native/onesignal";
 import { bindNotificationRouter } from "@/lib/native/appLifecycle";
 import { useLenis } from "@/lib/useLenis";
@@ -41,11 +41,12 @@ export function AppShell() {
 
   useEffect(() => {
     if (!user) return;
-    // Web push: register the SW and silently re-attach if permission already granted.
-    ensurePushSW();
-    syncExistingPush(user.id);
-    // Native push (Capacitor + OneSignal): init once, then bind this user id.
+    // OneSignal Web Push (installed PWA + browser). Silently binds external_id.
+    void initWebPush().then(() => linkWebPushUser(user.id));
+    // Capacitor native OneSignal (Android wrapper). Same App ID, same external_id.
     void initOneSignal().then(() => loginPushUser(user.id));
+    // Best-effort last_active touch for backend targeting/inactivity logic.
+    void supabase.from("profiles").update({}).eq("id", user.id).then(() => { /* noop */ });
     const load = async () => {
       const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).is("read_at", null);
@@ -58,15 +59,29 @@ export function AppShell() {
     return () => { window.removeEventListener("flick:notifications-updated", load); supabase.removeChannel(ch); };
   }, [user?.id]);
 
-  // Detach OneSignal external id when the user signs out.
+  // Detach OneSignal (web + native) external id when the user signs out.
   useEffect(() => {
     if (user) return;
+    void unlinkWebPushUser();
     void logoutPushUser();
   }, [user]);
 
-  // Route notification taps (foreground OneSignal click OR cold-start appUrlOpen).
+  // Route notification taps — native (Capacitor) OR web (OneSignal Web SDK / SW postMessage).
   useEffect(() => {
-    return bindNotificationRouter(navigate);
+    const unbindNative = bindNotificationRouter(navigate);
+    const onWebPushNav = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { url?: string; data?: Record<string, unknown> };
+      const url = detail?.url;
+      if (url) {
+        try {
+          const u = new URL(url, location.origin);
+          if (u.origin === location.origin) navigate(u.pathname + u.search + u.hash);
+          else window.open(u.toString(), "_blank");
+        } catch { /* noop */ }
+      }
+    };
+    window.addEventListener("flick:push-navigate", onWebPushNav);
+    return () => { unbindNative(); window.removeEventListener("flick:push-navigate", onWebPushNav); };
   }, [navigate]);
 
   return (
