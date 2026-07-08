@@ -34,17 +34,17 @@ export function initWebPush(): Promise<boolean> {
         appId: ONESIGNAL_APP_ID,
         allowLocalhostAsSecureOrigin: true,
         serviceWorkerPath: "OneSignalSDKWorker.js",
-        notifyButton: { enable: false },
       });
       // Foreground: let notification show even when tab is focused.
-      OneSignal.Notifications.addEventListener("foregroundWillDisplay", (ev: { notification: unknown; preventDefault: () => void }) => {
+      OneSignal.Notifications.addEventListener("foregroundWillDisplay", (ev: unknown) => {
         // Do NOT preventDefault — display the OS toast anyway.
-        try { window.dispatchEvent(new CustomEvent("flick:push-received", { detail: ev.notification })); } catch { /* noop */ }
+        try { window.dispatchEvent(new CustomEvent("flick:push-received", { detail: ev })); } catch { /* noop */ }
       });
       // Click routing — forward to the AppShell router.
-      OneSignal.Notifications.addEventListener("click", (ev: { notification: { additionalData?: Record<string, unknown> }; result: { url?: string } }) => {
-        const url = ev.result?.url;
-        const data = ev.notification?.additionalData ?? {};
+      OneSignal.Notifications.addEventListener("click", (ev: unknown) => {
+        const e = ev as { notification?: { additionalData?: unknown }; result?: { url?: string } };
+        const url = e.result?.url;
+        const data = (e.notification?.additionalData ?? {}) as Record<string, unknown>;
         window.dispatchEvent(new CustomEvent("flick:push-navigate", { detail: { url, data } }));
       });
       return true;
@@ -77,7 +77,8 @@ export async function linkWebPushUser(userId: string) {
     const OneSignal = (await import("react-onesignal")).default;
     await OneSignal.login(userId);
     // Best-effort: capture the subscription id so we can debug delivery per-device.
-    const subId: string | undefined = OneSignal.User?.PushSubscription?.id;
+    const rawId = OneSignal.User?.PushSubscription?.id;
+    const subId: string | undefined = typeof rawId === "string" ? rawId : undefined;
     if (subId) {
       await supabase.from("push_subscriptions").upsert({
         user_id: userId,
