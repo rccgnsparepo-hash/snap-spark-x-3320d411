@@ -53,7 +53,10 @@ export function setGlobalBadge(count: number) {
       }
     ).Capacitor;
     const badge = cap?.Plugins?.Badge;
-    if (badge) n > 0 ? badge.set({ count: n }) : badge.clear();
+    if (badge) {
+      if (n > 0) badge.set({ count: n });
+      else badge.clear();
+    }
   } catch {
     /* noop */
   }
