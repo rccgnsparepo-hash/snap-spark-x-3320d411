@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { initWebPush, linkWebPushUser, unlinkWebPushUser } from "@/lib/webPush";
 import { initOneSignal, loginPushUser, logoutPushUser } from "@/lib/native/onesignal";
 import { bindNotificationRouter } from "@/lib/native/appLifecycle";
+import { setGlobalBadge } from "@/lib/notifications/badge";
 import { useLenis } from "@/lib/useLenis";
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
@@ -51,6 +52,7 @@ export function AppShell() {
       const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).is("read_at", null);
       setUnread(count ?? 0);
+      setGlobalBadge(count ?? 0);
     };
     load();
     window.addEventListener("flick:notifications-updated", load);
