@@ -296,7 +296,8 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
                               onOpenGroup={g.count > 1 && idx === 0
                                 ? () => setExpanded((s) => {
                                     const next = new Set(s);
-                                    next.has(g.key) ? next.delete(g.key) : next.add(g.key);
+                                    if (next.has(g.key)) next.delete(g.key);
+                                    else next.add(g.key);
                                     return next;
                                   })
                                 : undefined}
