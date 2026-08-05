@@ -64,6 +64,7 @@ export function AppShell() {
   // Detach OneSignal (web + native) external id when the user signs out.
   useEffect(() => {
     if (user) return;
+    setGlobalBadge(0);
     void unlinkWebPushUser();
     void logoutPushUser();
   }, [user]);
