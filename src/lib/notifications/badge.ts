@@ -23,34 +23,51 @@ export function setGlobalBadge(count: number) {
   try {
     if (n > 0) void nav.setAppBadge?.(n);
     else void nav.clearAppBadge?.();
-  } catch { /* unsupported — fall through */ }
+  } catch {
+    /* unsupported — fall through */
+  }
 
   // 2. Document title (Electron taskbar + browser tab fallback).
   try {
     document.title = n > 0 ? `(${n > 99 ? "99+" : n}) ${baseTitle}` : baseTitle;
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 
   // 3. Electron tray badge over IPC, when the desktop shell exposes it.
   try {
-    const el = (window as unknown as { electron?: { setBadgeCount?: (n: number) => void } }).electron;
+    const el = (window as unknown as { electron?: { setBadgeCount?: (n: number) => void } })
+      .electron;
     el?.setBadgeCount?.(n);
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 
   // 4. Android launcher badge (Capacitor plugin, if installed in the native shell).
   try {
-    const cap = (window as unknown as {
-      Capacitor?: { Plugins?: { Badge?: { set: (o: { count: number }) => void; clear: () => void } } };
-    }).Capacitor;
+    const cap = (
+      window as unknown as {
+        Capacitor?: {
+          Plugins?: { Badge?: { set: (o: { count: number }) => void; clear: () => void } };
+        };
+      }
+    ).Capacitor;
     const badge = cap?.Plugins?.Badge;
-    if (badge) (n > 0 ? badge.set({ count: n }) : badge.clear());
-  } catch { /* noop */ }
+    if (badge) n > 0 ? badge.set({ count: n }) : badge.clear();
+  } catch {
+    /* noop */
+  }
 
   listeners.forEach((fn) => fn(n));
 }
 
-export function getGlobalBadge() { return current; }
+export function getGlobalBadge() {
+  return current;
+}
 
 export function onBadgeChange(fn: (n: number) => void) {
   listeners.add(fn);
-  return () => { listeners.delete(fn); };
+  return () => {
+    listeners.delete(fn);
+  };
 }

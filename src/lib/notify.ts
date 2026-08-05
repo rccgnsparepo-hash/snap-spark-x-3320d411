@@ -19,10 +19,18 @@ export type NotifyInput = {
 
 const QUEUE_KEY = "flick:notify-queue";
 const readQueue = (): NotifyInput[] => {
-  try { return JSON.parse(localStorage.getItem(QUEUE_KEY) ?? "[]") as NotifyInput[]; } catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(QUEUE_KEY) ?? "[]") as NotifyInput[];
+  } catch {
+    return [];
+  }
 };
 const writeQueue = (q: NotifyInput[]) => {
-  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q.slice(-50))); } catch { /* noop */ }
+  try {
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(q.slice(-50)));
+  } catch {
+    /* noop */
+  }
 };
 const enqueue = (input: NotifyInput) => writeQueue([...readQueue(), input]);
 
@@ -47,7 +55,9 @@ export async function flushNotifyQueue() {
 }
 
 if (typeof window !== "undefined") {
-  window.addEventListener("online", () => { void flushNotifyQueue(); });
+  window.addEventListener("online", () => {
+    void flushNotifyQueue();
+  });
 }
 
 /** Invoke the push gateway with bounded exponential-backoff retries. */
@@ -58,7 +68,9 @@ async function send(input: NotifyInput, attempts = 3): Promise<boolean> {
         body: { ...input, recipients: input.recipients ?? [] },
       });
       if (!error) return true;
-    } catch { /* retry */ }
+    } catch {
+      /* retry */
+    }
     if (i < attempts - 1) await new Promise((r) => setTimeout(r, 400 * 2 ** i));
   }
   return false;
@@ -71,12 +83,17 @@ export async function notify(input: NotifyInput) {
       const actorId = input.actor?.id ?? null;
       const who = input.actor?.display_name ?? input.actor?.handle ?? "Someone";
       const fallbackTitle =
-        input.kind === "like" ? `${who} liked your flick`
-        : input.kind === "comment" ? `${who} commented on your flick`
-        : input.kind === "message" ? `${who} sent you a message`
-        : input.kind === "story" ? `${who} posted a story`
-        : input.kind === "post" ? `${who} just flicked`
-        : `${who} updated something`;
+        input.kind === "like"
+          ? `${who} liked your flick`
+          : input.kind === "comment"
+            ? `${who} commented on your flick`
+            : input.kind === "message"
+              ? `${who} sent you a message`
+              : input.kind === "story"
+                ? `${who} posted a story`
+                : input.kind === "post"
+                  ? `${who} just flicked`
+                  : `${who} updated something`;
       const rows = input.recipients
         .filter((r) => r && r !== actorId)
         .map((user_id) => ({
@@ -90,7 +107,10 @@ export async function notify(input: NotifyInput) {
         }));
       if (rows.length) await supabase.from("notifications").insert(rows);
     }
-    if (!navigator.onLine) { enqueue(input); return; }
+    if (!navigator.onLine) {
+      enqueue(input);
+      return;
+    }
     const ok = await send(input);
     if (!ok) enqueue(input);
     else void flushNotifyQueue();

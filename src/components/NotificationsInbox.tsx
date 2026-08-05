@@ -1,8 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X, Bell, Heart, MessageCircle, AtSign, Camera, FileText, Trash2, Search,
-  CheckCheck, Settings2, Archive, ChevronDown, BellOff,
+  X,
+  Bell,
+  Heart,
+  MessageCircle,
+  AtSign,
+  Camera,
+  FileText,
+  Trash2,
+  Search,
+  CheckCheck,
+  Settings2,
+  Archive,
+  ChevronDown,
+  BellOff,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -18,24 +30,36 @@ const readPerm = (): NotificationPermission =>
   typeof Notification === "undefined" ? "denied" : Notification.permission;
 
 const FILTERS = ["All", "Unread", "Messages", "Mentions", "Posts", "Stories"] as const;
-type Filter = typeof FILTERS[number];
+type Filter = (typeof FILTERS)[number];
 
 const ARCHIVE_KEY = "flick:notif-archived";
 const readArchive = (): Set<string> => {
-  try { return new Set(JSON.parse(localStorage.getItem(ARCHIVE_KEY) ?? "[]") as string[]); }
-  catch { return new Set(); }
+  try {
+    return new Set(JSON.parse(localStorage.getItem(ARCHIVE_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
 };
 const writeArchive = (s: Set<string>) => {
-  try { localStorage.setItem(ARCHIVE_KEY, JSON.stringify([...s].slice(-500))); } catch { /* noop */ }
+  try {
+    localStorage.setItem(ARCHIVE_KEY, JSON.stringify([...s].slice(-500)));
+  } catch {
+    /* noop */
+  }
 };
 
 const iconFor = (k: string) =>
-  k === "like" ? Heart
-  : k === "mention" ? AtSign
-  : k === "story" ? Camera
-  : k === "post" ? FileText
-  : k === "comment" || k === "message" ? MessageCircle
-  : Bell;
+  k === "like"
+    ? Heart
+    : k === "mention"
+      ? AtSign
+      : k === "story"
+        ? Camera
+        : k === "post"
+          ? FileText
+          : k === "comment" || k === "message"
+            ? MessageCircle
+            : Bell;
 
 const PRIORITY_STYLE: Record<string, string> = {
   high: "bg-snap/20 text-snap border-snap/40",
@@ -47,7 +71,9 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const { user } = useAuth();
   const { prefs, update } = useNotifPrefs();
   const [items, setItems] = useState<NotifRow[]>([]);
-  const [actors, setActors] = useState<Record<string, { handle: string; display_name: string; avatar_url: string | null }>>({});
+  const [actors, setActors] = useState<
+    Record<string, { handle: string; display_name: string; avatar_url: string | null }>
+  >({});
   const [filter, setFilter] = useState<Filter>("All");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -57,7 +83,9 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const [pushPerm, setPushPerm] = useState<NotificationPermission>("default");
   const undoRef = useRef<NotifRow[] | null>(null);
 
-  useEffect(() => { setPushPerm(readPerm()); }, [open]);
+  useEffect(() => {
+    setPushPerm(readPerm());
+  }, [open]);
 
   const enablePush = async () => {
     if (!user) return;
@@ -69,15 +97,24 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("notifications").select("*")
-      .eq("user_id", user.id).order("created_at", { ascending: false }).limit(200);
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(200);
     const rows = (data ?? []) as NotifRow[];
     setItems(rows);
     const ids = [...new Set(rows.map((r) => r.actor_id).filter(Boolean))] as string[];
     if (ids.length) {
-      const { data: profs } = await supabase.from("profiles")
-        .select("id,handle,display_name,avatar_url").in("id", ids);
-      const map: Record<string, { handle: string; display_name: string; avatar_url: string | null }> = {};
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,handle,display_name,avatar_url")
+        .in("id", ids);
+      const map: Record<
+        string,
+        { handle: string; display_name: string; avatar_url: string | null }
+      > = {};
       for (const p of profs ?? []) map[p.id] = p;
       setActors(map);
     }
@@ -86,12 +123,17 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   useEffect(() => {
     if (!open || !user) return;
     void load();
-    const ch = supabase.channel(`inbox-${user.id}-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes",
+    const ch = supabase
+      .channel(`inbox-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => void load())
+        () => void load(),
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [open, user, load]);
 
   const ping = () => window.dispatchEvent(new Event("flick:notifications-updated"));
@@ -116,7 +158,9 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const markRead = async (ids: string[]) => {
     if (!ids.length) return;
     const now = new Date().toISOString();
-    setItems((xs) => xs.map((x) => ids.includes(x.id) && !x.read_at ? { ...x, read_at: now } : x));
+    setItems((xs) =>
+      xs.map((x) => (ids.includes(x.id) && !x.read_at ? { ...x, read_at: now } : x)),
+    );
     ping();
     await supabase.from("notifications").update({ read_at: now }).in("id", ids);
     ping();
@@ -125,9 +169,13 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const markAllRead = async () => {
     if (!user) return;
     const now = new Date().toISOString();
-    setItems((xs) => xs.map((x) => x.read_at ? x : { ...x, read_at: now }));
+    setItems((xs) => xs.map((x) => (x.read_at ? x : { ...x, read_at: now })));
     ping();
-    await supabase.from("notifications").update({ read_at: now }).eq("user_id", user.id).is("read_at", null);
+    await supabase
+      .from("notifications")
+      .update({ read_at: now })
+      .eq("user_id", user.id)
+      .is("read_at", null);
     ping();
   };
 
@@ -146,7 +194,9 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
         onClick: async () => {
           const rows = undoRef.current ?? [];
           if (!rows.length) return;
-          setItems((xs) => [...rows, ...xs].sort((a, b) => b.created_at.localeCompare(a.created_at)));
+          setItems((xs) =>
+            [...rows, ...xs].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+          );
           await supabase.from("notifications").insert(rows.map(({ ...r }) => r) as never);
           ping();
         },
@@ -157,14 +207,17 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   const archive = (ids: string[]) => {
     const next = new Set(archived);
     ids.forEach((i) => next.add(i));
-    setArchived(next); writeArchive(next); setSelected(new Set());
+    setArchived(next);
+    writeArchive(next);
+    setSelected(new Set());
     toast("Archived", {
       action: {
         label: "Undo",
         onClick: () => {
           const back = new Set(next);
           ids.forEach((i) => back.delete(i));
-          setArchived(back); writeArchive(back);
+          setArchived(back);
+          writeArchive(back);
         },
       },
     });
@@ -184,27 +237,49 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
-          className="fixed inset-0 z-[65] bg-black/70 backdrop-blur-sm flex justify-end">
-          <motion.aside initial={{ x: 440 }} animate={{ x: 0 }} exit={{ x: 440 }}
-            transition={{ type: "spring", stiffness: 320, damping: 34 }} onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md h-[100dvh] bg-card border-l-2 border-border flex flex-col overflow-hidden">
-
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 z-[65] bg-black/70 backdrop-blur-sm flex justify-end"
+        >
+          <motion.aside
+            initial={{ x: 440 }}
+            animate={{ x: 0 }}
+            exit={{ x: 440 }}
+            transition={{ type: "spring", stiffness: 320, damping: 34 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md h-[100dvh] bg-card border-l-2 border-border flex flex-col overflow-hidden"
+          >
             {/* Header */}
-            <header className="px-4 pt-4 pb-3 border-b-2 border-border shrink-0"
-              style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
+            <header
+              className="px-4 pt-4 pb-3 border-b-2 border-border shrink-0"
+              style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+            >
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <Bell className="w-5 h-5 text-snap" />
-                  {unreadTotal > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-snap" />}
+                  {unreadTotal > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-snap" />
+                  )}
                 </div>
                 <h2 className="font-display text-lg uppercase tracking-tight flex-1 min-w-0 truncate">
-                  Notifications{unreadTotal > 0 && <span className="text-snap"> · {unreadTotal}</span>}
+                  Notifications
+                  {unreadTotal > 0 && <span className="text-snap"> · {unreadTotal}</span>}
                 </h2>
-                <button onClick={() => setShowPrefs((v) => !v)}
+                <button
+                  onClick={() => setShowPrefs((v) => !v)}
                   className="w-11 h-11 grid place-items-center text-muted-foreground hover:text-foreground"
-                  aria-label="Notification settings"><Settings2 className="w-5 h-5" /></button>
-                <button onClick={onClose} className="w-11 h-11 grid place-items-center" aria-label="Close">
+                  aria-label="Notification settings"
+                >
+                  <Settings2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={onClose}
+                  className="w-11 h-11 grid place-items-center"
+                  aria-label="Close"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -212,18 +287,27 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
               <div className="mt-3 flex items-center gap-2">
                 <div className="flex-1 flex items-center gap-2 bg-secondary rounded-xl px-3 h-10 min-w-0">
                   <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search notifications"
-                    className="bg-transparent outline-none text-sm flex-1 min-w-0 text-foreground placeholder:text-muted-foreground" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search notifications"
+                    className="bg-transparent outline-none text-sm flex-1 min-w-0 text-foreground placeholder:text-muted-foreground"
+                  />
                 </div>
-                <button onClick={markAllRead} title="Mark all read"
-                  className="w-10 h-10 rounded-xl bg-secondary grid place-items-center text-muted-foreground hover:text-snap">
+                <button
+                  onClick={markAllRead}
+                  title="Mark all read"
+                  className="w-10 h-10 rounded-xl bg-secondary grid place-items-center text-muted-foreground hover:text-snap"
+                >
                   <CheckCheck className="w-4 h-4" />
                 </button>
               </div>
 
               {pushPerm !== "granted" && (
-                <button onClick={enablePush}
-                  className="mt-3 w-full h-10 rounded-xl bg-snap text-snap-foreground text-sm font-bold uppercase tracking-wide">
+                <button
+                  onClick={enablePush}
+                  className="mt-3 w-full h-10 rounded-xl bg-snap text-snap-foreground text-sm font-bold uppercase tracking-wide"
+                >
                   Enable push notifications
                 </button>
               )}
@@ -232,8 +316,12 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
             {/* Preferences panel */}
             <AnimatePresence>
               {showPrefs && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }} className="border-b-2 border-border overflow-hidden shrink-0">
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="border-b-2 border-border overflow-hidden shrink-0"
+                >
                   <PrefsPanel prefs={prefs} update={update} />
                 </motion.div>
               )}
@@ -242,23 +330,55 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
             {/* Filters */}
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2 border-b border-border shrink-0">
               {FILTERS.map((f) => (
-                <button key={f} onClick={() => setFilter(f)}
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
                   className={`px-3 h-8 rounded-full text-xs font-bold uppercase tracking-wide whitespace-nowrap transition ${
-                    filter === f ? "bg-snap text-snap-foreground" : "bg-secondary text-muted-foreground"}`}>{f}</button>
+                    filter === f
+                      ? "bg-snap text-snap-foreground"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {f}
+                </button>
               ))}
             </div>
 
             {/* Bulk action bar */}
             <AnimatePresence>
               {selecting && (
-                <motion.div initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -12, opacity: 0 }}
-                  className="flex items-center gap-2 px-3 py-2 bg-snap/10 border-b border-snap/30 shrink-0">
+                <motion.div
+                  initial={{ y: -12, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -12, opacity: 0 }}
+                  className="flex items-center gap-2 px-3 py-2 bg-snap/10 border-b border-snap/30 shrink-0"
+                >
                   <span className="text-xs font-bold text-snap">{selected.size} selected</span>
                   <div className="flex-1" />
-                  <button onClick={() => void markRead([...selected])} className="px-2 h-9 text-xs font-semibold text-muted-foreground hover:text-foreground">Read</button>
-                  <button onClick={() => archive([...selected])} className="px-2 h-9 text-xs font-semibold text-muted-foreground hover:text-foreground">Archive</button>
-                  <button onClick={() => void remove([...selected])} className="px-2 h-9 text-xs font-semibold text-destructive">Delete</button>
-                  <button onClick={() => setSelected(new Set())} className="w-9 h-9 grid place-items-center"><X className="w-4 h-4" /></button>
+                  <button
+                    onClick={() => void markRead([...selected])}
+                    className="px-2 h-9 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Read
+                  </button>
+                  <button
+                    onClick={() => archive([...selected])}
+                    className="px-2 h-9 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Archive
+                  </button>
+                  <button
+                    onClick={() => void remove([...selected])}
+                    className="px-2 h-9 text-xs font-semibold text-destructive"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setSelected(new Set())}
+                    className="w-9 h-9 grid place-items-center"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -293,14 +413,17 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
                               selected={selected.has(n.id)}
                               selecting={selecting}
                               onSelect={() => toggleSelect(idx === 0 && !isOpen ? ids : [n.id])}
-                              onOpenGroup={g.count > 1 && idx === 0
-                                ? () => setExpanded((s) => {
-                                    const next = new Set(s);
-                                    if (next.has(g.key)) next.delete(g.key);
-                                    else next.add(g.key);
-                                    return next;
-                                  })
-                                : undefined}
+                              onOpenGroup={
+                                g.count > 1 && idx === 0
+                                  ? () =>
+                                      setExpanded((s) => {
+                                        const next = new Set(s);
+                                        if (next.has(g.key)) next.delete(g.key);
+                                        else next.add(g.key);
+                                        return next;
+                                      })
+                                  : undefined
+                              }
                               expanded={isOpen}
                               onRead={() => void markRead([n.id])}
                               onArchive={() => archive([n.id])}
@@ -326,14 +449,33 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
 /* ---------------- Notification card with swipe gestures ---------------- */
 
 function NotifCard({
-  n, actor, count, unreadCount, selected, selecting, expanded,
-  onSelect, onOpenGroup, onRead, onArchive, onDelete, onNavigate,
+  n,
+  actor,
+  count,
+  unreadCount,
+  selected,
+  selecting,
+  expanded,
+  onSelect,
+  onOpenGroup,
+  onRead,
+  onArchive,
+  onDelete,
+  onNavigate,
 }: {
   n: NotifRow;
   actor?: { handle: string; display_name: string; avatar_url: string | null };
-  count: number; unreadCount: number; selected: boolean; selecting: boolean; expanded: boolean;
-  onSelect: () => void; onOpenGroup?: () => void;
-  onRead: () => void; onArchive: () => void; onDelete: () => void; onNavigate: () => void;
+  count: number;
+  unreadCount: number;
+  selected: boolean;
+  selecting: boolean;
+  expanded: boolean;
+  onSelect: () => void;
+  onOpenGroup?: () => void;
+  onRead: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onNavigate: () => void;
 }) {
   const Icon = iconFor(n.kind);
   const unread = !n.read_at;
@@ -341,10 +483,14 @@ function NotifCard({
   const name = actor?.display_name ?? n.title;
 
   const body = (
-    <div className={`flex gap-3 px-4 py-3 border-b border-border transition ${unread ? "bg-snap/[0.06]" : ""} ${selected ? "bg-snap/15" : "hover:bg-secondary/40"}`}>
+    <div
+      className={`flex gap-3 px-4 py-3 border-b border-border transition ${unread ? "bg-snap/[0.06]" : ""} ${selected ? "bg-snap/15" : "hover:bg-secondary/40"}`}
+    >
       <div className="relative shrink-0">
         <Avatar url={actor?.avatar_url} name={name} size={42} ring={unread} />
-        <span className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full grid place-items-center border ${PRIORITY_STYLE[prio]}`}>
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full grid place-items-center border ${PRIORITY_STYLE[prio]}`}
+        >
           <Icon className="w-2.5 h-2.5" />
         </span>
       </div>
@@ -353,16 +499,33 @@ function NotifCard({
           {n.title}
           {count > 1 && <span className="ml-1 text-snap font-bold">({count})</span>}
         </div>
-        {n.body && <div className="text-xs text-muted-foreground line-clamp-2 break-words">{n.body}</div>}
+        {n.body && (
+          <div className="text-xs text-muted-foreground line-clamp-2 break-words">{n.body}</div>
+        )}
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-[10px] text-muted-foreground/70">{formatDistanceToNowStrict(new Date(n.created_at))} ago</span>
-          {prio === "high" && <span className="text-[9px] font-bold uppercase tracking-wider text-snap">Priority</span>}
-          {count > 1 && unreadCount > 0 && <span className="text-[9px] font-bold text-snap">{unreadCount} new</span>}
+          <span className="text-[10px] text-muted-foreground/70">
+            {formatDistanceToNowStrict(new Date(n.created_at))} ago
+          </span>
+          {prio === "high" && (
+            <span className="text-[9px] font-bold uppercase tracking-wider text-snap">
+              Priority
+            </span>
+          )}
+          {count > 1 && unreadCount > 0 && (
+            <span className="text-[9px] font-bold text-snap">{unreadCount} new</span>
+          )}
         </div>
       </div>
       {onOpenGroup && (
-        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenGroup(); }}
-          className="w-9 h-9 grid place-items-center shrink-0 text-muted-foreground" aria-label="Expand group">
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpenGroup();
+          }}
+          className="w-9 h-9 grid place-items-center shrink-0 text-muted-foreground"
+          aria-label="Expand group"
+        >
           <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
         </button>
       )}
@@ -374,8 +537,14 @@ function NotifCard({
     <div className="relative overflow-hidden">
       {/* swipe action backdrops */}
       <div className="absolute inset-0 flex items-center justify-between px-5 pointer-events-none">
-        <span className="flex items-center gap-1.5 text-xs font-bold uppercase text-snap"><Archive className="w-4 h-4" />Archive</span>
-        <span className="flex items-center gap-1.5 text-xs font-bold uppercase text-destructive">Delete<Trash2 className="w-4 h-4" /></span>
+        <span className="flex items-center gap-1.5 text-xs font-bold uppercase text-snap">
+          <Archive className="w-4 h-4" />
+          Archive
+        </span>
+        <span className="flex items-center gap-1.5 text-xs font-bold uppercase text-destructive">
+          Delete
+          <Trash2 className="w-4 h-4" />
+        </span>
       </div>
       <motion.div
         drag="x"
@@ -385,13 +554,26 @@ function NotifCard({
           if (info.offset.x > 110) onArchive();
           else if (info.offset.x < -110) onDelete();
         }}
-        onContextMenu={(e) => { e.preventDefault(); onSelect(); }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onSelect();
+        }}
         className="relative bg-card"
       >
         {selecting || !n.url ? (
-          <div onClick={() => (selecting ? onSelect() : onRead())} className="cursor-pointer">{body}</div>
+          <div onClick={() => (selecting ? onSelect() : onRead())} className="cursor-pointer">
+            {body}
+          </div>
         ) : (
-          <Link to={n.url} onClick={() => { onRead(); onNavigate(); }}>{body}</Link>
+          <Link
+            to={n.url}
+            onClick={() => {
+              onRead();
+              onNavigate();
+            }}
+          >
+            {body}
+          </Link>
         )}
       </motion.div>
     </div>
@@ -411,31 +593,57 @@ const TOGGLES: { key: keyof NotifPrefs; label: string }[] = [
   { key: "vibrate", label: "Vibration" },
 ];
 
-function PrefsPanel({ prefs, update }: { prefs: NotifPrefs; update: (p: Partial<NotifPrefs>) => void }) {
+function PrefsPanel({
+  prefs,
+  update,
+}: {
+  prefs: NotifPrefs;
+  update: (p: Partial<NotifPrefs>) => void;
+}) {
   return (
     <div className="px-4 py-3 space-y-2 bg-secondary/30">
-      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Preferences</div>
+      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+        Preferences
+      </div>
       <div className="grid grid-cols-2 gap-1.5">
         {TOGGLES.map((t) => {
           const on = prefs[t.key] as boolean;
           return (
-            <button key={t.key} onClick={() => update({ [t.key]: !on } as Partial<NotifPrefs>)}
+            <button
+              key={t.key}
+              onClick={() => update({ [t.key]: !on } as Partial<NotifPrefs>)}
               className={`h-10 rounded-xl px-3 text-xs font-semibold text-left flex items-center justify-between ${
-                on ? "bg-snap/15 text-foreground" : "bg-secondary text-muted-foreground"}`}>
+                on ? "bg-snap/15 text-foreground" : "bg-secondary text-muted-foreground"
+              }`}
+            >
               <span className="truncate">{t.label}</span>
-              <span className={`w-8 h-4 rounded-full relative shrink-0 ${on ? "bg-snap" : "bg-muted-foreground/30"}`}>
-                <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${on ? "left-4" : "left-0.5"}`} />
+              <span
+                className={`w-8 h-4 rounded-full relative shrink-0 ${on ? "bg-snap" : "bg-muted-foreground/30"}`}
+              >
+                <span
+                  className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${on ? "left-4" : "left-0.5"}`}
+                />
               </span>
             </button>
           );
         })}
       </div>
-      <button onClick={() => update({ quietHours: !prefs.quietHours })}
+      <button
+        onClick={() => update({ quietHours: !prefs.quietHours })}
         className={`w-full h-10 rounded-xl px-3 text-xs font-semibold flex items-center justify-between ${
-          prefs.quietHours ? "bg-snap/15 text-foreground" : "bg-secondary text-muted-foreground"}`}>
-        <span>Quiet hours · {String(prefs.quietFrom).padStart(2, "0")}:00 – {String(prefs.quietTo).padStart(2, "0")}:00</span>
-        <span className={`w-8 h-4 rounded-full relative shrink-0 ${prefs.quietHours ? "bg-snap" : "bg-muted-foreground/30"}`}>
-          <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${prefs.quietHours ? "left-4" : "left-0.5"}`} />
+          prefs.quietHours ? "bg-snap/15 text-foreground" : "bg-secondary text-muted-foreground"
+        }`}
+      >
+        <span>
+          Quiet hours · {String(prefs.quietFrom).padStart(2, "0")}:00 –{" "}
+          {String(prefs.quietTo).padStart(2, "0")}:00
+        </span>
+        <span
+          className={`w-8 h-4 rounded-full relative shrink-0 ${prefs.quietHours ? "bg-snap" : "bg-muted-foreground/30"}`}
+        >
+          <span
+            className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${prefs.quietHours ? "left-4" : "left-0.5"}`}
+          />
         </span>
       </button>
     </div>

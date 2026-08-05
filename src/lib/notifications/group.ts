@@ -1,8 +1,15 @@
 // Smart grouping + time sectioning for the notification center.
 export type NotifRow = {
-  id: string; user_id: string; actor_id: string | null; kind: string;
-  title: string; body: string | null; url: string | null;
-  data: Record<string, unknown>; read_at: string | null; created_at: string;
+  id: string;
+  user_id: string;
+  actor_id: string | null;
+  kind: string;
+  title: string;
+  body: string | null;
+  url: string | null;
+  data: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
 };
 
 export type NotifGroup = {
@@ -52,7 +59,12 @@ export function sectionize(rows: NotifRow[]): Section[] {
   const today = startOfDay(now);
   const yesterday = today - 86400000;
   const week = today - 6 * 86400000;
-  const buckets: Record<string, NotifRow[]> = { TODAY: [], YESTERDAY: [], "THIS WEEK": [], OLDER: [] };
+  const buckets: Record<string, NotifRow[]> = {
+    TODAY: [],
+    YESTERDAY: [],
+    "THIS WEEK": [],
+    OLDER: [],
+  };
   for (const n of rows) {
     const t = new Date(n.created_at).getTime();
     if (t >= today) buckets.TODAY.push(n);
@@ -66,6 +78,11 @@ export function sectionize(rows: NotifRow[]): Section[] {
 }
 
 const PRIORITY: Record<string, "high" | "normal" | "low"> = {
-  message: "high", mention: "high", comment: "normal", story: "normal", post: "low", like: "low",
+  message: "high",
+  mention: "high",
+  comment: "normal",
+  story: "normal",
+  post: "low",
+  like: "low",
 };
 export const priorityOf = (kind: string) => PRIORITY[kind] ?? "normal";
