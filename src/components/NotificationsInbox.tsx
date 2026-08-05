@@ -1,41 +1,92 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Bell, Heart, MessageCircle, AtSign, Camera, FileText, Trash2 } from "lucide-react";
+import {
+  X,
+  Bell,
+  Heart,
+  MessageCircle,
+  AtSign,
+  Camera,
+  FileText,
+  Trash2,
+  Search,
+  CheckCheck,
+  Settings2,
+  Archive,
+  ChevronDown,
+  BellOff,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Link } from "react-router-dom";
 import { requestWebPushPermission, linkWebPushUser } from "@/lib/webPush";
+import { Avatar } from "@/components/Avatar";
+import { dedupe, sectionize, priorityOf, type NotifRow } from "@/lib/notifications/group";
+import { useNotifPrefs, type NotifPrefs } from "@/lib/notifications/prefs";
+import { toast } from "sonner";
 
 const readPerm = (): NotificationPermission =>
   typeof Notification === "undefined" ? "denied" : Notification.permission;
-import { toast } from "sonner";
 
-type Notif = {
-  id: string; user_id: string; actor_id: string | null; kind: string;
-  title: string; body: string | null; url: string | null;
-  data: Record<string, unknown>; read_at: string | null; created_at: string;
+const FILTERS = ["All", "Unread", "Messages", "Mentions", "Posts", "Stories"] as const;
+type Filter = (typeof FILTERS)[number];
+
+const ARCHIVE_KEY = "flick:notif-archived";
+const readArchive = (): Set<string> => {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(ARCHIVE_KEY) ?? "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+};
+const writeArchive = (s: Set<string>) => {
+  try {
+    localStorage.setItem(ARCHIVE_KEY, JSON.stringify([...s].slice(-500)));
+  } catch {
+    /* noop */
+  }
 };
 
-const FILTERS = ["All", "Stories", "Mentions", "Posts", "Messages"] as const;
-type Filter = typeof FILTERS[number];
+const iconFor = (k: string) =>
+  k === "like"
+    ? Heart
+    : k === "mention"
+      ? AtSign
+      : k === "story"
+        ? Camera
+        : k === "post"
+          ? FileText
+          : k === "comment" || k === "message"
+            ? MessageCircle
+            : Bell;
 
-const iconFor = (k: string) => {
-  if (k === "like") return Heart;
-  if (k === "comment") return MessageCircle;
-  if (k === "mention") return AtSign;
-  if (k === "story") return Camera;
-  if (k === "post") return FileText;
-  if (k === "message") return MessageCircle;
-  return Bell;
+const PRIORITY_STYLE: Record<string, string> = {
+  high: "bg-snap/20 text-snap border-snap/40",
+  normal: "bg-secondary text-muted-foreground border-border",
+  low: "bg-secondary/60 text-muted-foreground/80 border-border",
 };
 
 export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
-  const [items, setItems] = useState<Notif[]>([]);
+  const { prefs, update } = useNotifPrefs();
+  const [items, setItems] = useState<NotifRow[]>([]);
+  const [actors, setActors] = useState<
+    Record<string, { handle: string; display_name: string; avatar_url: string | null }>
+  >({});
   const [filter, setFilter] = useState<Filter>("All");
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [archived, setArchived] = useState<Set<string>>(readArchive);
+  const [showPrefs, setShowPrefs] = useState(false);
   const [pushPerm, setPushPerm] = useState<NotificationPermission>("default");
-  useEffect(() => { setPushPerm(readPerm()); }, [open]);
+  const undoRef = useRef<NotifRow[] | null>(null);
+
+  useEffect(() => {
+    setPushPerm(readPerm());
+  }, [open]);
+
   const enablePush = async () => {
     if (!user) return;
     const ok = await requestWebPushPermission();
@@ -44,122 +95,557 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
     toast[ok ? "success" : "error"](ok ? "Push notifications enabled" : "Could not enable push");
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("notifications").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(100);
-    setItems((data ?? []) as Notif[]);
-  };
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    const rows = (data ?? []) as NotifRow[];
+    setItems(rows);
+    const ids = [...new Set(rows.map((r) => r.actor_id).filter(Boolean))] as string[];
+    if (ids.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,handle,display_name,avatar_url")
+        .in("id", ids);
+      const map: Record<
+        string,
+        { handle: string; display_name: string; avatar_url: string | null }
+      > = {};
+      for (const p of profs ?? []) map[p.id] = p;
+      setActors(map);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!open || !user) return;
-    load();
-    const ch = supabase.channel(`inbox-${user.id}`).on("postgres_changes",
-      { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` }, load).subscribe();
-    return () => { supabase.removeChannel(ch); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, user?.id]);
+    void load();
+    const ch = supabase
+      .channel(`inbox-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        () => void load(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [open, user, load]);
 
-  // Dedupe near-duplicate notifications (same kind + actor + target within 60s)
-  const deduped = useMemo(() => {
-    const seen = new Map<string, Notif>();
-    for (const n of items) {
-      const target = (n.data as { post_id?: string; recipient_id?: string })?.post_id
-        ?? (n.data as { recipient_id?: string })?.recipient_id ?? "";
-      const bucket = Math.floor(new Date(n.created_at).getTime() / 60000);
-      const key = `${n.kind}:${n.actor_id ?? "_"}:${target}:${bucket}`;
-      if (!seen.has(key)) seen.set(key, n);
-    }
-    return [...seen.values()];
-  }, [items]);
-  const filtered = useMemo(() => deduped.filter((n) => {
-    if (filter === "All") return true;
-    if (filter === "Stories") return n.kind === "story";
-    if (filter === "Mentions") return n.kind === "mention";
-    if (filter === "Posts") return n.kind === "post" || n.kind === "like" || n.kind === "comment";
-    if (filter === "Messages") return n.kind === "message";
-    return true;
-  }), [deduped, filter]);
+  const ping = () => window.dispatchEvent(new Event("flick:notifications-updated"));
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return dedupe(items).filter((n) => {
+      if (archived.has(n.id)) return false;
+      if (q && !`${n.title} ${n.body ?? ""}`.toLowerCase().includes(q)) return false;
+      if (filter === "Unread") return !n.read_at;
+      if (filter === "Stories") return n.kind === "story";
+      if (filter === "Mentions") return n.kind === "mention";
+      if (filter === "Posts") return ["post", "like", "comment"].includes(n.kind);
+      if (filter === "Messages") return n.kind === "message";
+      return true;
+    });
+  }, [items, filter, query, archived]);
+
+  const sections = useMemo(() => sectionize(visible), [visible]);
+  const unreadTotal = useMemo(() => visible.filter((n) => !n.read_at).length, [visible]);
+
+  const markRead = async (ids: string[]) => {
+    if (!ids.length) return;
+    const now = new Date().toISOString();
+    setItems((xs) =>
+      xs.map((x) => (ids.includes(x.id) && !x.read_at ? { ...x, read_at: now } : x)),
+    );
+    ping();
+    await supabase.from("notifications").update({ read_at: now }).in("id", ids);
+    ping();
+  };
 
   const markAllRead = async () => {
     if (!user) return;
-    setItems((xs) => xs.map((x) => x.read_at ? x : { ...x, read_at: new Date().toISOString() }));
-    window.dispatchEvent(new Event("flick:notifications-updated"));
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() })
-      .eq("user_id", user.id).is("read_at", null);
-    window.dispatchEvent(new Event("flick:notifications-updated"));
+    const now = new Date().toISOString();
+    setItems((xs) => xs.map((x) => (x.read_at ? x : { ...x, read_at: now })));
+    ping();
+    await supabase
+      .from("notifications")
+      .update({ read_at: now })
+      .eq("user_id", user.id)
+      .is("read_at", null);
+    ping();
   };
 
-  const clearAll = async () => {
-    if (!user) return;
-    setItems([]);
-    window.dispatchEvent(new Event("flick:notifications-updated"));
-    await supabase.from("notifications").delete().eq("user_id", user.id);
-    window.dispatchEvent(new Event("flick:notifications-updated"));
+  const remove = async (ids: string[]) => {
+    if (!ids.length) return;
+    undoRef.current = items.filter((x) => ids.includes(x.id));
+    setItems((xs) => xs.filter((x) => !ids.includes(x.id)));
+    setSelected(new Set());
+    ping();
+    await supabase.from("notifications").delete().in("id", ids);
+    ping();
+    toast("Deleted", {
+      description: `${ids.length} notification${ids.length > 1 ? "s" : ""} removed`,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          const rows = undoRef.current ?? [];
+          if (!rows.length) return;
+          setItems((xs) =>
+            [...rows, ...xs].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+          );
+          await supabase.from("notifications").insert(rows.map(({ ...r }) => r) as never);
+          ping();
+        },
+      },
+    });
   };
+
+  const archive = (ids: string[]) => {
+    const next = new Set(archived);
+    ids.forEach((i) => next.add(i));
+    setArchived(next);
+    writeArchive(next);
+    setSelected(new Set());
+    toast("Archived", {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          const back = new Set(next);
+          ids.forEach((i) => back.delete(i));
+          setArchived(back);
+          writeArchive(back);
+        },
+      },
+    });
+  };
+
+  const toggleSelect = (ids: string[]) => {
+    setSelected((s) => {
+      const next = new Set(s);
+      const allIn = ids.every((i) => next.has(i));
+      ids.forEach((i) => (allIn ? next.delete(i) : next.add(i)));
+      return next;
+    });
+  };
+
+  const selecting = selected.size > 0;
 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
-          className="fixed inset-0 z-[65] bg-black/70 backdrop-blur flex justify-end">
-          <motion.aside initial={{ x: 400 }} animate={{ x: 0 }} exit={{ x: 400 }}
-            transition={{ type: "spring", stiffness: 320, damping: 32 }} onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md h-[100dvh] bg-card border-l border-border flex flex-col">
-            <header className="p-4 border-b border-border flex items-center gap-2">
-              <Bell className="w-5 h-5 text-snap" />
-              <h2 className="font-display text-lg flex-1">Notifications</h2>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 z-[65] bg-black/70 backdrop-blur-sm flex justify-end"
+        >
+          <motion.aside
+            initial={{ x: 440 }}
+            animate={{ x: 0 }}
+            exit={{ x: 440 }}
+            transition={{ type: "spring", stiffness: 320, damping: 34 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md h-[100dvh] bg-card border-l-2 border-border flex flex-col overflow-hidden"
+          >
+            {/* Header */}
+            <header
+              className="px-4 pt-4 pb-3 border-b-2 border-border shrink-0"
+              style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Bell className="w-5 h-5 text-snap" />
+                  {unreadTotal > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-snap" />
+                  )}
+                </div>
+                <h2 className="font-display text-lg uppercase tracking-tight flex-1 min-w-0 truncate">
+                  Notifications
+                  {unreadTotal > 0 && <span className="text-snap"> · {unreadTotal}</span>}
+                </h2>
+                <button
+                  onClick={() => setShowPrefs((v) => !v)}
+                  className="w-11 h-11 grid place-items-center text-muted-foreground hover:text-foreground"
+                  aria-label="Notification settings"
+                >
+                  <Settings2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={onClose}
+                  className="w-11 h-11 grid place-items-center"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <div className="flex-1 flex items-center gap-2 bg-secondary rounded-xl px-3 h-10 min-w-0">
+                  <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search notifications"
+                    className="bg-transparent outline-none text-sm flex-1 min-w-0 text-foreground placeholder:text-muted-foreground"
+                  />
+                </div>
+                <button
+                  onClick={markAllRead}
+                  title="Mark all read"
+                  className="w-10 h-10 rounded-xl bg-secondary grid place-items-center text-muted-foreground hover:text-snap"
+                >
+                  <CheckCheck className="w-4 h-4" />
+                </button>
+              </div>
+
               {pushPerm !== "granted" && (
-                <button onClick={enablePush} className="text-xs px-2 py-1 rounded-full bg-snap text-snap-foreground font-semibold">Enable push</button>
+                <button
+                  onClick={enablePush}
+                  className="mt-3 w-full h-10 rounded-xl bg-snap text-snap-foreground text-sm font-bold uppercase tracking-wide"
+                >
+                  Enable push notifications
+                </button>
               )}
-              <button onClick={markAllRead} className="text-xs text-muted-foreground hover:text-foreground">Mark read</button>
-              <button onClick={clearAll} className="p-1.5 text-muted-foreground hover:text-destructive" aria-label="Clear all"><Trash2 className="w-4 h-4" /></button>
-              <button onClick={onClose} className="p-1.5"><X className="w-5 h-5" /></button>
             </header>
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2 border-b border-border">
+
+            {/* Preferences panel */}
+            <AnimatePresence>
+              {showPrefs && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="border-b-2 border-border overflow-hidden shrink-0"
+                >
+                  <PrefsPanel prefs={prefs} update={update} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Filters */}
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-3 py-2 border-b border-border shrink-0">
               {FILTERS.map((f) => (
-                <button key={f} onClick={() => setFilter(f)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${filter === f ? "bg-snap text-snap-foreground" : "bg-secondary text-muted-foreground"}`}>{f}</button>
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 h-8 rounded-full text-xs font-bold uppercase tracking-wide whitespace-nowrap transition ${
+                    filter === f
+                      ? "bg-snap text-snap-foreground"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  {f}
+                </button>
               ))}
             </div>
-            <div className="flex-1 overflow-y-auto">
-              {filtered.length === 0 && (
-                <div className="text-center text-muted-foreground text-sm py-16 px-6">
-                  Nothing here yet. Likes, comments, mentions and DMs will land here in real time.
+
+            {/* Bulk action bar */}
+            <AnimatePresence>
+              {selecting && (
+                <motion.div
+                  initial={{ y: -12, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -12, opacity: 0 }}
+                  className="flex items-center gap-2 px-3 py-2 bg-snap/10 border-b border-snap/30 shrink-0"
+                >
+                  <span className="text-xs font-bold text-snap">{selected.size} selected</span>
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => void markRead([...selected])}
+                    className="px-2 h-9 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Read
+                  </button>
+                  <button
+                    onClick={() => archive([...selected])}
+                    className="px-2 h-9 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Archive
+                  </button>
+                  <button
+                    onClick={() => void remove([...selected])}
+                    className="px-2 h-9 text-xs font-semibold text-destructive"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => setSelected(new Set())}
+                    className="w-9 h-9 grid place-items-center"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto overscroll-contain">
+              {sections.length === 0 && (
+                <div className="text-center text-muted-foreground text-sm py-20 px-8">
+                  <BellOff className="w-8 h-8 mx-auto mb-3 opacity-40" />
+                  Nothing here yet. Likes, comments, mentions and DMs land here in real time.
                 </div>
               )}
-              <ul>
-                {filtered.map((n) => {
-                  const Icon = iconFor(n.kind);
-                  const unread = !n.read_at;
-                  const inner = (
-                    <div className={`flex gap-3 px-4 py-3 border-b border-border hover:bg-secondary/40 transition ${unread ? "bg-snap/5" : ""}`}>
-                      <div className={`w-9 h-9 rounded-full grid place-items-center shrink-0 ${unread ? "bg-snap/20 text-snap" : "bg-secondary text-muted-foreground"}`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate">{n.title}</div>
-                        {n.body && <div className="text-xs text-muted-foreground line-clamp-2">{n.body}</div>}
-                        <div className="text-[10px] text-muted-foreground/70 mt-0.5">{formatDistanceToNowStrict(new Date(n.created_at))} ago</div>
-                      </div>
-                      {unread && <span className="w-2 h-2 rounded-full bg-snap mt-2" />}
-                    </div>
-                  );
-                  const markOne = () => {
-                    setItems((xs) => xs.map((x) => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x));
-                    window.dispatchEvent(new Event("flick:notifications-updated"));
-                    supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", n.id);
-                  };
-                  return (
-                    <li key={n.id} onClick={markOne}>
-                      {n.url ? <Link to={n.url} onClick={onClose}>{inner}</Link> : inner}
-                    </li>
-                  );
-                })}
-              </ul>
+              {sections.map((section) => (
+                <section key={section.label}>
+                  <div className="sticky top-0 z-10 px-4 py-1.5 bg-card/95 backdrop-blur text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground border-b border-border">
+                    {section.label}
+                  </div>
+                  <ul>
+                    {section.groups.map((g) => {
+                      const ids = g.items.map((i) => i.id);
+                      const isOpen = expanded.has(g.key);
+                      const rows = isOpen ? g.items : [g.head];
+                      return (
+                        <li key={g.key}>
+                          {rows.map((n, idx) => (
+                            <NotifCard
+                              key={n.id}
+                              n={n}
+                              actor={n.actor_id ? actors[n.actor_id] : undefined}
+                              count={idx === 0 && !isOpen ? g.count : 1}
+                              unreadCount={g.unread}
+                              selected={selected.has(n.id)}
+                              selecting={selecting}
+                              onSelect={() => toggleSelect(idx === 0 && !isOpen ? ids : [n.id])}
+                              onOpenGroup={
+                                g.count > 1 && idx === 0
+                                  ? () =>
+                                      setExpanded((s) => {
+                                        const next = new Set(s);
+                                        if (next.has(g.key)) next.delete(g.key);
+                                        else next.add(g.key);
+                                        return next;
+                                      })
+                                  : undefined
+                              }
+                              expanded={isOpen}
+                              onRead={() => void markRead([n.id])}
+                              onArchive={() => archive([n.id])}
+                              onDelete={() => void remove([n.id])}
+                              onNavigate={onClose}
+                            />
+                          ))}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+              <div className="h-8" />
             </div>
           </motion.aside>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/* ---------------- Notification card with swipe gestures ---------------- */
+
+function NotifCard({
+  n,
+  actor,
+  count,
+  unreadCount,
+  selected,
+  selecting,
+  expanded,
+  onSelect,
+  onOpenGroup,
+  onRead,
+  onArchive,
+  onDelete,
+  onNavigate,
+}: {
+  n: NotifRow;
+  actor?: { handle: string; display_name: string; avatar_url: string | null };
+  count: number;
+  unreadCount: number;
+  selected: boolean;
+  selecting: boolean;
+  expanded: boolean;
+  onSelect: () => void;
+  onOpenGroup?: () => void;
+  onRead: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onNavigate: () => void;
+}) {
+  const Icon = iconFor(n.kind);
+  const unread = !n.read_at;
+  const prio = priorityOf(n.kind);
+  const name = actor?.display_name ?? n.title;
+
+  const body = (
+    <div
+      className={`flex gap-3 px-4 py-3 border-b border-border transition ${unread ? "bg-snap/[0.06]" : ""} ${selected ? "bg-snap/15" : "hover:bg-secondary/40"}`}
+    >
+      <div className="relative shrink-0">
+        <Avatar url={actor?.avatar_url} name={name} size={42} ring={unread} />
+        <span
+          className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full grid place-items-center border ${PRIORITY_STYLE[prio]}`}
+        >
+          <Icon className="w-2.5 h-2.5" />
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold break-words line-clamp-2">
+          {n.title}
+          {count > 1 && <span className="ml-1 text-snap font-bold">({count})</span>}
+        </div>
+        {n.body && (
+          <div className="text-xs text-muted-foreground line-clamp-2 break-words">{n.body}</div>
+        )}
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[10px] text-muted-foreground/70">
+            {formatDistanceToNowStrict(new Date(n.created_at))} ago
+          </span>
+          {prio === "high" && (
+            <span className="text-[9px] font-bold uppercase tracking-wider text-snap">
+              Priority
+            </span>
+          )}
+          {count > 1 && unreadCount > 0 && (
+            <span className="text-[9px] font-bold text-snap">{unreadCount} new</span>
+          )}
+        </div>
+      </div>
+      {onOpenGroup && (
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpenGroup();
+          }}
+          className="w-9 h-9 grid place-items-center shrink-0 text-muted-foreground"
+          aria-label="Expand group"
+        >
+          <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </button>
+      )}
+      {unread && !onOpenGroup && <span className="w-2 h-2 rounded-full bg-snap mt-2 shrink-0" />}
+    </div>
+  );
+
+  return (
+    <div className="relative overflow-hidden">
+      {/* swipe action backdrops */}
+      <div className="absolute inset-0 flex items-center justify-between px-5 pointer-events-none">
+        <span className="flex items-center gap-1.5 text-xs font-bold uppercase text-snap">
+          <Archive className="w-4 h-4" />
+          Archive
+        </span>
+        <span className="flex items-center gap-1.5 text-xs font-bold uppercase text-destructive">
+          Delete
+          <Trash2 className="w-4 h-4" />
+        </span>
+      </div>
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.35}
+        onDragEnd={(_, info) => {
+          if (info.offset.x > 110) onArchive();
+          else if (info.offset.x < -110) onDelete();
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onSelect();
+        }}
+        className="relative bg-card"
+      >
+        {selecting || !n.url ? (
+          <div onClick={() => (selecting ? onSelect() : onRead())} className="cursor-pointer">
+            {body}
+          </div>
+        ) : (
+          <Link
+            to={n.url}
+            onClick={() => {
+              onRead();
+              onNavigate();
+            }}
+          >
+            {body}
+          </Link>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+/* ---------------- Preferences ---------------- */
+
+const TOGGLES: { key: keyof NotifPrefs; label: string }[] = [
+  { key: "message", label: "Messages" },
+  { key: "mention", label: "Mentions" },
+  { key: "comment", label: "Comments" },
+  { key: "like", label: "Likes" },
+  { key: "story", label: "Stories" },
+  { key: "post", label: "New flicks" },
+  { key: "sound", label: "Sound" },
+  { key: "vibrate", label: "Vibration" },
+];
+
+function PrefsPanel({
+  prefs,
+  update,
+}: {
+  prefs: NotifPrefs;
+  update: (p: Partial<NotifPrefs>) => void;
+}) {
+  return (
+    <div className="px-4 py-3 space-y-2 bg-secondary/30">
+      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+        Preferences
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {TOGGLES.map((t) => {
+          const on = prefs[t.key] as boolean;
+          return (
+            <button
+              key={t.key}
+              onClick={() => update({ [t.key]: !on } as Partial<NotifPrefs>)}
+              className={`h-10 rounded-xl px-3 text-xs font-semibold text-left flex items-center justify-between ${
+                on ? "bg-snap/15 text-foreground" : "bg-secondary text-muted-foreground"
+              }`}
+            >
+              <span className="truncate">{t.label}</span>
+              <span
+                className={`w-8 h-4 rounded-full relative shrink-0 ${on ? "bg-snap" : "bg-muted-foreground/30"}`}
+              >
+                <span
+                  className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${on ? "left-4" : "left-0.5"}`}
+                />
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <button
+        onClick={() => update({ quietHours: !prefs.quietHours })}
+        className={`w-full h-10 rounded-xl px-3 text-xs font-semibold flex items-center justify-between ${
+          prefs.quietHours ? "bg-snap/15 text-foreground" : "bg-secondary text-muted-foreground"
+        }`}
+      >
+        <span>
+          Quiet hours · {String(prefs.quietFrom).padStart(2, "0")}:00 –{" "}
+          {String(prefs.quietTo).padStart(2, "0")}:00
+        </span>
+        <span
+          className={`w-8 h-4 rounded-full relative shrink-0 ${prefs.quietHours ? "bg-snap" : "bg-muted-foreground/30"}`}
+        >
+          <span
+            className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${prefs.quietHours ? "left-4" : "left-0.5"}`}
+          />
+        </span>
+      </button>
+    </div>
   );
 }

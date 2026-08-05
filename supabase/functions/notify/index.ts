@@ -25,6 +25,24 @@ const defaultTitle = (k: Body['kind'], who: string) => {
   }
 };
 
+/** POST with bounded exponential backoff; retries only on network errors / 5xx / 429. */
+async function postWithRetry(url: string, init: RequestInit, attempts = 3): Promise<{ ok: boolean; body: string }> {
+  let last = '';
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, init);
+      last = await res.text();
+      if (res.ok) return { ok: true, body: last };
+      if (res.status < 500 && res.status !== 429) return { ok: false, body: last };
+    } catch (e) {
+      last = String(e);
+    }
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, 500 * 2 ** i));
+  }
+  console.error('[notify] delivery failed after retries', url, last);
+  return { ok: false, body: last };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   try {
@@ -37,7 +55,11 @@ Deno.serve(async (req) => {
     // NOTE: legacy VAPID web-push has been removed. OneSignal is the ONLY push provider
     // (installed PWA + browser + native Android), targeted by external_id = supabase user id.
     if (NOTIFY_WEBHOOK_URL) {
-      tasks.push(fetch(NOTIFY_WEBHOOK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
+      tasks.push(postWithRetry(NOTIFY_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }));
     }
     if (ONESIGNAL_APP_ID && ONESIGNAL_REST_API_KEY) {
       // Native push via OneSignal. Prefer targeted external_user_ids (= supabase user id)
@@ -74,14 +96,15 @@ Deno.serve(async (req) => {
       } else {
         osPayload.included_segments = ['Subscribed Users'];
       }
-      tasks.push(fetch('https://onesignal.com/api/v1/notifications', {
+      tasks.push(postWithRetry('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Basic ${ONESIGNAL_REST_API_KEY}` },
         body: JSON.stringify(osPayload),
-      }).then((r) => r.text()).catch((e) => ({ err: String(e) })));
+      }));
     }
-    const results = await Promise.all(tasks);
-    return new Response(JSON.stringify({ ok: true, sent: results.length }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    const results = (await Promise.all(tasks)) as { ok: boolean }[];
+    const delivered = results.filter((r) => r?.ok).length;
+    return new Response(JSON.stringify({ ok: true, attempted: results.length, delivered }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 });
   }
