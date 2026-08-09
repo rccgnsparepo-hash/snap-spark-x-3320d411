@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 import path from "node:path";
 
 export default defineConfig(({ mode }) => ({
@@ -12,6 +13,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     tailwindcss(),
     tsconfigPaths(),
+    mcpPlugin(),
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
