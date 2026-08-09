@@ -43,7 +43,9 @@ function IntroGate() {
 function Protected({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">…</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">…</div>
+    );
   }
   if (!session) return <Navigate to="/auth" replace />;
   return <>{children}</>;
@@ -60,7 +62,13 @@ export default function App() {
             <Route path="/intro" element={<IntroPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
-            <Route element={<Protected><AppShell /></Protected>}>
+            <Route
+              element={
+                <Protected>
+                  <AppShell />
+                </Protected>
+              }
+            >
               <Route path="/" element={<HomePage />} />
               <Route path="/camera" element={<CameraPage />} />
               <Route path="/stories/new" element={<StoryComposerPage />} />

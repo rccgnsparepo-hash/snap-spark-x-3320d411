@@ -3,7 +3,9 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 type OAuthApi = {
-  getAuthorizationDetails: (id: string) => Promise<{ data: any; error: { message: string } | null }>;
+  getAuthorizationDetails: (
+    id: string,
+  ) => Promise<{ data: any; error: { message: string } | null }>;
   approveAuthorization: (id: string) => Promise<{ data: any; error: { message: string } | null }>;
   denyAuthorization: (id: string) => Promise<{ data: any; error: { message: string } | null }>;
 };

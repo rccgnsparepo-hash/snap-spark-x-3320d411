@@ -43,7 +43,9 @@ function supabasePublishableKey() {
   }
   const legacy = configuredEnv(["SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY"]);
   if (legacy) return legacy;
-  throw new Error("SUPABASE_PUBLISHABLE_KEY, SUPABASE_PUBLISHABLE_KEYS, or SUPABASE_ANON_KEY is required");
+  throw new Error(
+    "SUPABASE_PUBLISHABLE_KEY, SUPABASE_PUBLISHABLE_KEYS, or SUPABASE_ANON_KEY is required"
+  );
 }
 function supabaseForUser(ctx) {
   const token = ctx.getToken();
@@ -90,7 +92,9 @@ var list_feed_default = defineTool2({
     if (!ctx.isAuthenticated())
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     const supabase = supabaseForUser(ctx);
-    const { data, error } = await supabase.from("posts").select("id, content, media_type, media_url, created_at, author_id, profiles(handle, display_name)").order("created_at", { ascending: false }).limit(limit ?? 20);
+    const { data, error } = await supabase.from("posts").select(
+      "id, content, media_type, media_url, created_at, author_id, profiles(handle, display_name)"
+    ).order("created_at", { ascending: false }).limit(limit ?? 20);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {
       content: [{ type: "text", text: JSON.stringify(data ?? []) }],

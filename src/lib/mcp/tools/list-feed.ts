@@ -16,7 +16,9 @@ export default defineTool({
     const supabase = supabaseForUser(ctx);
     const { data, error } = await supabase
       .from("posts")
-      .select("id, content, media_type, media_url, created_at, author_id, profiles(handle, display_name)")
+      .select(
+        "id, content, media_type, media_url, created_at, author_id, profiles(handle, display_name)",
+      )
       .order("created_at", { ascending: false })
       .limit(limit ?? 20);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
