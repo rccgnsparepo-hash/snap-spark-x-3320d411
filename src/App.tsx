@@ -14,6 +14,7 @@ import ChallengesPage from "@/pages/Challenges";
 import ComicsPage from "@/pages/Comics";
 import ComicReaderPage from "@/pages/ComicReader";
 import AuthPage from "@/pages/Auth";
+import OAuthConsentPage from "@/pages/OAuthConsent";
 import IntroPage from "@/pages/Intro";
 import NotFound from "@/pages/NotFound";
 import NewsPage from "@/pages/News";
@@ -30,7 +31,7 @@ function IntroGate() {
   useEffect(() => {
     if (checked) return;
     const seen = sessionStorage.getItem("flick:intro");
-    if (!seen && pathname !== "/intro") {
+    if (!seen && pathname !== "/intro" && !pathname.startsWith("/.lovable/")) {
       sessionStorage.setItem("flick:intro", "1");
       nav("/intro", { replace: true });
     }
@@ -42,7 +43,9 @@ function IntroGate() {
 function Protected({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">…</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center text-muted-foreground">…</div>
+    );
   }
   if (!session) return <Navigate to="/auth" replace />;
   return <>{children}</>;
@@ -58,7 +61,14 @@ export default function App() {
           <Routes>
             <Route path="/intro" element={<IntroPage />} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route element={<Protected><AppShell /></Protected>}>
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
+            <Route
+              element={
+                <Protected>
+                  <AppShell />
+                </Protected>
+              }
+            >
               <Route path="/" element={<HomePage />} />
               <Route path="/camera" element={<CameraPage />} />
               <Route path="/stories/new" element={<StoryComposerPage />} />
