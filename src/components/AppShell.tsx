@@ -130,11 +130,15 @@ export function AppShell() {
   }, [navigate]);
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row relative bg-background">
-      {/* Desktop sidebar (≥1024px) */}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border p-6 sticky top-0 h-screen bg-background/80 backdrop-blur z-20">
-        <Link to="/" className="font-display text-3xl mb-10 tracking-tight">
-          flick<span className="text-snap">.</span>
+    <div className="app-shell h-[100dvh] overflow-hidden flex relative bg-background">
+      {/* Persistent desktop sidebar — compact ≥1024px, full ≥1280px. Never scrolls with content. */}
+      <aside className="hidden lg:flex w-[88px] xl:w-[260px] shrink-0 flex-col border-r border-border p-3 xl:p-6 h-full overflow-y-auto bg-background z-30">
+        <Link
+          to="/"
+          className="font-display text-2xl xl:text-3xl mb-8 tracking-tight text-center xl:text-left"
+        >
+          f<span className="hidden xl:inline">lick</span>
+          <span className="text-snap">.</span>
         </Link>
         <nav className="flex flex-col gap-1">
           {tabs.map((t) => {
@@ -143,47 +147,55 @@ export function AppShell() {
               <Link
                 key={t.to}
                 to={t.to}
-                className={`flex items-center gap-4 px-4 py-3 rounded-full text-lg transition ${
+                title={t.label}
+                className={`flex items-center justify-center xl:justify-start gap-4 px-3 xl:px-4 py-3 rounded-full text-lg transition ${
                   active ? "bg-secondary font-semibold" : "hover:bg-secondary/60"
                 }`}
               >
-                <t.icon className="w-6 h-6" /> {t.label}
+                <t.icon className="w-6 h-6 shrink-0" />
+                <span className="hidden xl:inline">{t.label}</span>
               </Link>
             );
           })}
           <Link
             to="/comics"
-            className="flex items-center gap-4 px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60"
+            title="Comics"
+            className="flex items-center justify-center xl:justify-start gap-4 px-3 xl:px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60"
           >
-            <BookOpen className="w-6 h-6" /> Comics
+            <BookOpen className="w-6 h-6 shrink-0" />
+            <span className="hidden xl:inline">Comics</span>
           </Link>
           <Link
             to="/camera"
-            className="flex items-center gap-4 px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60"
+            title="Camera"
+            className="flex items-center justify-center xl:justify-start gap-4 px-3 xl:px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60"
           >
-            <Plus className="w-6 h-6" /> Camera
+            <Plus className="w-6 h-6 shrink-0" />
+            <span className="hidden xl:inline">Camera</span>
           </Link>
           <button
             onClick={() => setInboxOpen(true)}
-            className="flex items-center gap-4 px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60 text-left relative"
+            title="Notifications"
+            className="flex items-center justify-center xl:justify-start gap-4 px-3 xl:px-4 py-3 rounded-full text-lg transition hover:bg-secondary/60 text-left relative"
           >
-            <Bell className="w-6 h-6" /> Notifications
+            <Bell className="w-6 h-6 shrink-0" />
+            <span className="hidden xl:inline">Notifications</span>
             {unread > 0 && (
-              <span className="ml-auto bg-snap text-snap-foreground text-xs font-bold rounded-full px-2 py-0.5">
+              <span className="absolute top-1.5 right-2 xl:static xl:ml-auto bg-snap text-snap-foreground text-[10px] xl:text-xs font-bold rounded-full px-1.5 xl:px-2 py-0.5">
                 {unread > 99 ? "99+" : unread}
               </span>
             )}
           </button>
         </nav>
-        <div className="mt-auto flex items-center gap-3 p-3 rounded-2xl border border-border">
+        <div className="mt-auto flex items-center justify-center xl:justify-start gap-3 p-2 xl:p-3 rounded-2xl xl:border border-border">
           <Avatar url={profile?.avatar_url} name={profile?.display_name} size={40} />
-          <div className="flex-1 min-w-0">
+          <div className="hidden xl:block flex-1 min-w-0">
             <div className="font-semibold truncate text-sm">{profile?.display_name}</div>
             <div className="text-xs text-muted-foreground truncate">@{profile?.handle}</div>
           </div>
           <button
             onClick={signOut}
-            className="text-muted-foreground hover:text-foreground"
+            className="hidden xl:block text-muted-foreground hover:text-foreground"
             aria-label="Sign out"
           >
             <LogOut className="w-4 h-4" />
@@ -191,12 +203,11 @@ export function AppShell() {
         </div>
       </aside>
 
-      {/* Main */}
+      {/* Main viewport — the only vertical scroll container */}
       <main
-        className={`flex-1 w-full mx-auto bg-background relative z-10 overflow-x-hidden min-w-0 ${
-          fullBleed
-            ? "lg:max-w-none h-[100dvh] lg:h-screen overflow-hidden"
-            : `max-w-2xl min-h-[100dvh] border-x border-border ${chrome ? "pb-28 lg:pb-0" : ""}`
+        ref={viewportRef}
+        className={`flex-1 min-w-0 min-h-0 bg-background relative z-10 overflow-x-hidden ${
+          fullBleed ? "overflow-y-hidden h-full" : "overflow-y-auto"
         }`}
       >
         {/* Mobile/tablet top bar — bell only (logo & nav live in bottom dock) */}
