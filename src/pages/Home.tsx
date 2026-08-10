@@ -157,7 +157,7 @@ export default function HomePage() {
 
       {/* Today's News (image-1 inspired) */}
       {!searching && news.length > 0 && (chip === "For You" || chip === "News") && (
-        <section className="px-5 pt-5">
+        <section className="px-5 pt-5 xl:hidden">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="font-display text-lg flex items-center gap-2"><TrendingUp className="w-4 h-4 text-snap" /> Today's News</h2>
             <Link to="/news" className="text-xs text-snap font-semibold">See all →</Link>
@@ -198,7 +198,7 @@ export default function HomePage() {
 
       {/* Who to follow */}
       {!searching && suggested.length > 0 && (
-        <section className="px-5 pt-6">
+        <section className="px-5 pt-6 xl:hidden">
           <h2 className="font-display text-lg mb-2 flex items-center gap-2"><UserPlus className="w-4 h-4 text-snap" /> Who to follow</h2>
           <div className="card-glass rounded-2xl divide-y divide-border/60">
             {suggested.slice(0, 4).map((s) => (

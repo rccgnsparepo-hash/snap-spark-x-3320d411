@@ -189,7 +189,7 @@ export default function ThreadPage() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] lg:h-screen relative min-w-0 overflow-hidden" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
+    <div className="flex flex-col h-full relative min-w-0 overflow-hidden" style={{ ...(bg ? { backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" } : {}), fontFamily: FONT_MAP[fontFamily] ?? undefined }}>
       <header className="shrink-0 sticky top-0 z-10 bg-background/80 backdrop-blur border-b border-border px-3 py-3 flex items-center gap-2 min-w-0">
         <Link to="/messages" className="lg:hidden p-2 -ml-2"><ArrowLeft /></Link>
         <button onClick={() => setProfileOpen(true)} className="flex items-center gap-2 flex-1 min-w-0 text-left">
