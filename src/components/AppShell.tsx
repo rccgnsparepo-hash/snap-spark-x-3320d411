@@ -18,13 +18,14 @@ import { Avatar } from "./Avatar";
 import { AnimatePresence, motion } from "framer-motion";
 import { CoachMark } from "./CoachMark";
 import { NotificationsInbox } from "./NotificationsInbox";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { initWebPush, linkWebPushUser, unlinkWebPushUser } from "@/lib/webPush";
 import { initOneSignal, loginPushUser, logoutPushUser } from "@/lib/native/onesignal";
 import { bindNotificationRouter } from "@/lib/native/appLifecycle";
 import { setGlobalBadge } from "@/lib/notifications/badge";
 import { useLenis } from "@/lib/useLenis";
+import { RightRail } from "./layout/RightRail";
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
   { to: "/", icon: Home, label: "Home" },
@@ -36,7 +37,8 @@ const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[]
 
 export function AppShell() {
   const { pathname } = useLocation();
-  useLenis();
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  useLenis(viewportRef);
   const navigate = useNavigate();
   const { profile, signOut, user } = useAuth();
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -48,6 +50,8 @@ export function AppShell() {
   const chrome = !inThread;
   // Pages that manage their own viewport height (no extra main padding/max-width)
   const fullBleed = inThread || pathname === "/messages";
+  // Wide desktops get a secondary contextual column on feed-style routes.
+  const showRail = !fullBleed && ["/", "/news", "/challenges", "/comics"].includes(pathname);
 
   // Top-level tab order for swipe navigation
   const tabOrder = ["/", "/news", "/stories/new", "/messages", "/profile"];
