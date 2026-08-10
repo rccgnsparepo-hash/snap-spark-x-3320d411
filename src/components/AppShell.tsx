@@ -237,7 +237,11 @@ export function AppShell() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className={`w-full overflow-x-hidden ${fullBleed ? "h-full" : ""}`}
+            className={`w-full overflow-x-hidden ${
+              fullBleed
+                ? "h-full"
+                : `mx-auto max-w-[640px] lg:border-x border-border ${chrome ? "pb-28 lg:pb-10" : ""}`
+            }`}
             drag={chrome && currentIdx >= 0 ? "x" : false}
             dragDirectionLock
             dragConstraints={{ left: 0, right: 0 }}
@@ -255,6 +259,9 @@ export function AppShell() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* Optional right rail — only when there is genuine horizontal room */}
+      {showRail && <RightRail />}
 
       {/* Mobile/tablet floating dock */}
       {chrome && (
