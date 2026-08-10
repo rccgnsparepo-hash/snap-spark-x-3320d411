@@ -206,6 +206,7 @@ export function AppShell() {
       {/* Main viewport — the only vertical scroll container */}
       <main
         ref={viewportRef}
+        data-app-viewport
         className={`flex-1 min-w-0 min-h-0 bg-background relative z-10 overflow-x-hidden ${
           fullBleed ? "overflow-y-hidden h-full" : "overflow-y-auto"
         }`}
