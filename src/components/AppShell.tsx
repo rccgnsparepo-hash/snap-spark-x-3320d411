@@ -209,7 +209,7 @@ export function AppShell() {
       <main
         ref={viewportRef}
         data-app-viewport
-        className={`flex-1 min-w-0 min-h-0 bg-background relative z-10 overflow-x-hidden ${
+        className={`flex-1 min-w-0 min-h-0 bg-background relative z-10 overflow-x-hidden no-scrollbar ${
           fullBleed ? "overflow-y-hidden h-full" : "overflow-y-auto"
         }`}
       >
@@ -243,7 +243,7 @@ export function AppShell() {
             className={`w-full overflow-x-hidden ${
               fullBleed
                 ? "h-full"
-                : `mx-auto max-w-[640px] lg:border-x border-border ${chrome ? "pb-28 lg:pb-10" : ""}`
+                : `mx-auto max-w-[640px] lg:max-w-none lg:px-8 xl:px-10 ${chrome ? "pb-28 lg:pb-10" : ""}`
             }`}
             drag={chrome && currentIdx >= 0 ? "x" : false}
             dragDirectionLock
