@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth";
 import { Avatar } from "./Avatar";
 import { AnimatePresence, motion } from "framer-motion";
 import { CoachMark } from "./CoachMark";
+import { ScrollHint } from "./ScrollHint";
 import { NotificationsInbox } from "./NotificationsInbox";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -413,6 +414,7 @@ export function AppShell() {
       </AnimatePresence>
 
       <CoachMark />
+      {!fullBleed && <ScrollHint />}
       <NotificationsInbox open={inboxOpen} onClose={() => setInboxOpen(false)} />
     </div>
   );
