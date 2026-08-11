@@ -18,14 +18,16 @@ import { Avatar } from "./Avatar";
 import { AnimatePresence, motion } from "framer-motion";
 import { CoachMark } from "./CoachMark";
 import { NotificationsInbox } from "./NotificationsInbox";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { initWebPush, linkWebPushUser, unlinkWebPushUser } from "@/lib/webPush";
 import { initOneSignal, loginPushUser, logoutPushUser } from "@/lib/native/onesignal";
 import { bindNotificationRouter } from "@/lib/native/appLifecycle";
 import { setGlobalBadge } from "@/lib/notifications/badge";
 import { useLenis } from "@/lib/useLenis";
-import { RightRail } from "./layout/RightRail";
+const RightRail = lazy(() =>
+  import("./layout/RightRail").then((m) => ({ default: m.RightRail })),
+);
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
   { to: "/", icon: Home, label: "Home" },
@@ -262,7 +264,13 @@ export function AppShell() {
       </main>
 
       {/* Optional right rail — only when there is genuine horizontal room */}
-      {showRail && <RightRail />}
+      {showRail && (
+        <Suspense
+          fallback={<aside className="hidden xl:block w-[320px] shrink-0 border-l border-border" />}
+        >
+          <RightRail />
+        </Suspense>
+      )}
 
       {/* Mobile/tablet floating dock */}
       {chrome && (
