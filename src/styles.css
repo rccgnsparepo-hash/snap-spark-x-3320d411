@@ -124,6 +124,10 @@ video.no-controls::-webkit-media-controls-enclosure { display: none !important; 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
+/* Global: never show a visible scrollbar anywhere */
+*::-webkit-scrollbar { width: 0; height: 0; display: none; }
+* { scrollbar-width: none; -ms-overflow-style: none; }
+
 /* Split-screen surfaces (image 3 inspiration) */
 .surface-warm {
   background: linear-gradient(135deg, var(--warm) 0%, var(--warm-deep) 100%);

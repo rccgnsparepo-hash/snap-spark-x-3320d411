@@ -261,12 +261,14 @@ export default function HomePage() {
       )}
 
       {/* Trending now feed */}
-      <section className="px-2 pt-4">
-        <div className="flex items-baseline justify-between px-3 mb-2">
+      <section className="px-2 lg:px-0 pt-4">
+        <div className="flex items-baseline justify-between px-3 lg:px-1 mb-2">
           <h2 className="font-display text-lg">{searching ? `Results for "${query}"` : chip === "Recent" ? "Just posted" : "Trending now"}</h2>
         </div>
         {ordered.length === 0 && <div className="text-center py-20 text-muted-foreground">{searching ? "Nothing here yet." : "No flicks yet. Be the first."}</div>}
-        {(searching ? ordered : trending).map((p) => <PostCard key={p.id} post={p} />)}
+        <div className="lg:grid lg:grid-cols-2 2xl:grid-cols-3 lg:gap-5 lg:items-start">
+          {(searching ? ordered : trending).map((p) => <PostCard key={p.id} post={p} />)}
+        </div>
       </section>
 
       <StoryViewer
