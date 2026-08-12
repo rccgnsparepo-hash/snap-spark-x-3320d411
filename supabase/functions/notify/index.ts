@@ -101,7 +101,6 @@ Deno.serve(async (req) => {
         app_id: ONESIGNAL_APP_ID,
         headings: { en: title },
         contents: { en: message || title },
-        url: launchUrl,
         web_url: launchUrl,
         app_url: `flick:/${relPath}`,
         data: deepLinkData,
