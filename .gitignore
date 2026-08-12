@@ -30,3 +30,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Android build artifacts (keep the android/ project itself committed)
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/app/src/main/assets/public/

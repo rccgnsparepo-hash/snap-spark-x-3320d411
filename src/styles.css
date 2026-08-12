@@ -124,9 +124,13 @@ video.no-controls::-webkit-media-controls-enclosure { display: none !important; 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
-/* Global: never show a visible scrollbar anywhere */
-*::-webkit-scrollbar { width: 0; height: 0; display: none; }
-* { scrollbar-width: none; -ms-overflow-style: none; }
+/* Global: never show a visible scrollbar anywhere, but keep scrolling + stable width */
+*::-webkit-scrollbar { width: 0 !important; height: 0 !important; display: none !important; }
+*::-webkit-scrollbar-track, *::-webkit-scrollbar-thumb { background: transparent; }
+* { scrollbar-width: none; -ms-overflow-style: none; scrollbar-color: transparent transparent; }
+/* No layout shift when the scrollbar disappears/appears */
+html { scrollbar-gutter: stable; overflow-y: scroll; }
+[data-app-viewport] { scrollbar-gutter: stable; }
 
 /* Split-screen surfaces (image 3 inspiration) */
 .surface-warm {
