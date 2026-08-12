@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { initWebPush, linkWebPushUser, unlinkWebPushUser } from "@/lib/webPush";
 import { initOneSignal, loginPushUser, logoutPushUser } from "@/lib/native/onesignal";
 import { bindNotificationRouter } from "@/lib/native/appLifecycle";
+import { payloadToPath, navigateOnce, type NotifPayload } from "@/lib/native/deepLink";
 import { setGlobalBadge } from "@/lib/notifications/badge";
 import { useLenis } from "@/lib/useLenis";
 const RightRail = lazy(() =>
