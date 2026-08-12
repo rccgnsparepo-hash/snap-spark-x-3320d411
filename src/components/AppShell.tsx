@@ -114,11 +114,18 @@ export function AppShell() {
     const unbindNative = bindNotificationRouter(navigate);
     const onWebPushNav = (e: Event) => {
       const detail = (e as CustomEvent).detail as { url?: string; data?: Record<string, unknown> };
+      // Prefer the structured payload (type + resourceId) so taps land on the
+      // exact DM thread / post / story; fall back to the raw launch URL.
+      const mapped = payloadToPath(detail?.data as NotifPayload | undefined);
+      if (mapped) {
+        navigateOnce(navigate, mapped);
+        return;
+      }
       const url = detail?.url;
       if (url) {
         try {
           const u = new URL(url, location.origin);
-          if (u.origin === location.origin) navigate(u.pathname + u.search + u.hash);
+          if (u.origin === location.origin) navigateOnce(navigate, u.pathname + u.search + u.hash);
           else window.open(u.toString(), "_blank");
         } catch {
           /* noop */
