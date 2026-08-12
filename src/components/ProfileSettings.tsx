@@ -3,6 +3,7 @@ import { ArrowLeft, Bookmark, Archive, Activity, Bell, Clock, Tablet, BarChart3,
 import { useAuth } from "@/lib/auth";
 import { usePremium } from "@/lib/premium";
 import { UpgradeModal } from "./UpgradeModal";
+import { PushStatusCard } from "./PushStatusCard";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -58,6 +59,7 @@ export function ProfileSettings({ open, onClose }: { open: boolean; onClose: () 
             <input placeholder="Search" className="w-full bg-secondary rounded-xl px-4 py-2.5 text-sm focus:outline-none" />
           </div>
           <div className="flex-1 overflow-y-auto pb-10">
+            <PushStatusCard />
             {sections.map((sec) => (
               <div key={sec.title} className="mb-2">
                 <div className="px-4 pt-3 pb-1 text-[11px] uppercase tracking-wider text-muted-foreground">{sec.title}</div>

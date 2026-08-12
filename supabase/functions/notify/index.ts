@@ -14,6 +14,20 @@ type Body = {
 const ONESIGNAL_APP_ID = Deno.env.get('ONESIGNAL_APP_ID');
 const ONESIGNAL_REST_API_KEY = Deno.env.get('ONESIGNAL_REST_API_KEY');
 const NOTIFY_WEBHOOK_URL = Deno.env.get('NOTIFY_WEBHOOK_URL');
+// Absolute origin used to build clickable launch URLs for web push (cold start).
+const APP_ORIGIN = (Deno.env.get('PUBLIC_APP_URL') ?? 'https://snap-spark-x.lovable.app').replace(/\/$/, '');
+
+/** kind + resource -> in-app path. Mirrors src/lib/native/deepLink.ts. */
+function pathFor(kind: Body['kind'], id?: string | null): string {
+  switch (kind) {
+    case 'message': return id ? `/messages/${id}` : '/messages';
+    case 'story': return id ? `/?story=${encodeURIComponent(id)}` : '/';
+    case 'post':
+    case 'like':
+    case 'comment': return id ? `/?post=${encodeURIComponent(id)}` : '/';
+    default: return '/';
+  }
+}
 
 const defaultTitle = (k: Body['kind'], who: string) => {
   switch (k) {
@@ -71,11 +85,14 @@ Deno.serve(async (req) => {
       };
       const androidChannel = channelByKind[body.kind] ?? 'posts';
       const resourceId = (body.data as { post_id?: string; story_id?: string; message_id?: string; news_id?: string } | undefined);
+      const rid = resourceId?.post_id ?? resourceId?.story_id ?? resourceId?.message_id ?? resourceId?.news_id ?? null;
+      const relPath = body.url && body.url.startsWith('/') ? body.url : pathFor(body.kind, rid);
+      const launchUrl = body.url && /^https?:\/\//.test(body.url) ? body.url : `${APP_ORIGIN}${relPath}`;
       const deepLinkData = {
         type: body.kind,
-        resourceId: resourceId?.post_id ?? resourceId?.story_id ?? resourceId?.message_id ?? resourceId?.news_id ?? null,
+        resourceId: rid,
         senderId: body.actor?.id ?? null,
-        deepLink: body.url ?? null,
+        deepLink: relPath,
         title,
         body: message,
         timestamp: payload.at,
@@ -84,7 +101,8 @@ Deno.serve(async (req) => {
         app_id: ONESIGNAL_APP_ID,
         headings: { en: title },
         contents: { en: message || title },
-        url: body.url ?? undefined,
+        web_url: launchUrl,
+        app_url: `flick:/${relPath}`,
         data: deepLinkData,
         android_channel_id: androidChannel,
         collapse_id: body.dedupe_id ?? undefined,
