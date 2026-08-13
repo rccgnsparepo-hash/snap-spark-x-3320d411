@@ -108,7 +108,17 @@ export default function NewsPage() {
     const { error } = await supabase.from("posts").insert({ author_id: user.id, content, media_type: "text" });
     if (error) { toast.error(error.message); return; }
     toast.success("Shared to your feed");
-    notify({ kind: "post", message: it.title, actor: { id: user.id } });
+    const { data: recipients } = await supabase.from("profiles").select("id").neq("id", user.id).limit(500);
+    notify({
+      kind: "post",
+      title: "New on Flick News",
+      message: it.title,
+      actor: { id: user.id },
+      recipients: (recipients ?? []).map((r) => r.id),
+      url: "/news",
+      data: { news_id: it.id },
+      dedupe_id: `news:${it.id}`,
+    });
   };
 
   const like = (id: string) => {
