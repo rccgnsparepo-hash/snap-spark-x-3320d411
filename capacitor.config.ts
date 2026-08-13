@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "app.lovable.p600ed84d2abb4a80b188e89fabece62d",
+  appId: "com.faratech.faraflick",
   appName: "flick",
   webDir: "dist",
   server: {

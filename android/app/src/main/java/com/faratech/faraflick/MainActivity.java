@@ -1,4 +1,4 @@
-package app.lovable.p600ed84d2abb4a80b188e89fabece62d;
+package com.faratech.faraflick;
 
 import com.getcapacitor.BridgeActivity;
 

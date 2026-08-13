@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "app.lovable.p600ed84d2abb4a80b188e89fabece62d"
+    namespace = "com.faratech.faraflick"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.lovable.p600ed84d2abb4a80b188e89fabece62d"
+        applicationId "com.faratech.faraflick"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
