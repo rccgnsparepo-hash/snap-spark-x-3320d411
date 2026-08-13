@@ -17,8 +17,8 @@ App ID (Android package): `com.faratech.faraflick`
 
 ## Finalising native push
 1. **Firebase (FCM v1)**
-   - Create a Firebase project → Add Android app with package `com.faratech.faraflick`.
-   - Download `google-services.json` → place it at `android/app/google-services.json`.
+   - Firebase project `flicky-2cf7b` is already linked; `android/app/google-services.json`
+     is committed for package `com.faratech.faraflick`. Nothing to do here.
    - Project settings → Service accounts → Generate new private key (JSON).
 2. **OneSignal**
    - Dashboard → Settings → Push & In-App → Google Android (FCM) → upload that service-account JSON.
