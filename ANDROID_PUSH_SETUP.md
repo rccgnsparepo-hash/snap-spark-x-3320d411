@@ -3,7 +3,7 @@
 The `android/` folder is committed, so aistudioapk.com (or Android Studio) can build it directly.
 
 ## OneSignal App ID linked to this project
-`a03fc9f3-4a7e-498f-89fe-2436e4de34d0`  (see `src/config/onesignal.ts`)
+`050ecfbd-c43d-453d-a578-2f3ece4649ea`  (see `src/config/onesignal.ts`)
 App ID (Android package): `app.lovable.p600ed84d2abb4a80b188e89fabece62d`
 
 ## Build steps
@@ -22,7 +22,7 @@ App ID (Android package): `app.lovable.p600ed84d2abb4a80b188e89fabece62d`
    - Project settings → Service accounts → Generate new private key (JSON).
 2. **OneSignal**
    - Dashboard → Settings → Push & In-App → Google Android (FCM) → upload that service-account JSON.
-   - Confirm the App ID matches `a03fc9f3-4a7e-498f-89fe-2436e4de34d0`.
+   - Confirm the App ID matches `050ecfbd-c43d-453d-a578-2f3ece4649ea`.
 3. **Backend secrets** (already wired in the `notify` edge function): `ONESIGNAL_APP_ID`, `ONESIGNAL_REST_API_KEY`.
 4. Install the APK, allow the notification prompt, sign in — the app calls
    `OneSignal.login(<supabase user id>)`, so the server targets `external_id` and the same

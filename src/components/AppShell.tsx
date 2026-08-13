@@ -66,7 +66,20 @@ export function AppShell() {
   useEffect(() => {
     if (!user) return;
     // OneSignal Web Push (installed PWA + browser). Silently binds external_id.
-    void initWebPush().then(() => linkWebPushUser(user.id));
+    void initWebPush().then(async (ready) => {
+      await linkWebPushUser(user.id);
+      // Soft auto-prompt once per user: ask for push permission shortly after sign-in.
+      if (!ready) return;
+      const key = `flick:push-asked:${user.id}`;
+      if (localStorage.getItem(key)) return;
+      if (typeof Notification !== "undefined" && Notification.permission !== "default") return;
+      window.setTimeout(async () => {
+        localStorage.setItem(key, "1");
+        const { requestWebPushPermission } = await import("@/lib/webPush");
+        const granted = await requestWebPushPermission();
+        if (granted) await linkWebPushUser(user.id);
+      }, 6000);
+    });
     // Capacitor native OneSignal (Android wrapper). Same App ID, same external_id.
     void initOneSignal().then(() => loginPushUser(user.id));
     // Best-effort last_active touch for backend targeting/inactivity logic.
