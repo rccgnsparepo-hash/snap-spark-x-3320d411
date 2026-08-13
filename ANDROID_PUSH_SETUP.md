@@ -4,7 +4,7 @@ The `android/` folder is committed, so aistudioapk.com (or Android Studio) can b
 
 ## OneSignal App ID linked to this project
 `050ecfbd-c43d-453d-a578-2f3ece4649ea`  (see `src/config/onesignal.ts`)
-App ID (Android package): `app.lovable.p600ed84d2abb4a80b188e89fabece62d`
+App ID (Android package): `com.faratech.faraflick`
 
 ## Build steps
 1. `npm install`
@@ -17,7 +17,7 @@ App ID (Android package): `app.lovable.p600ed84d2abb4a80b188e89fabece62d`
 
 ## Finalising native push
 1. **Firebase (FCM v1)**
-   - Create a Firebase project → Add Android app with package `app.lovable.p600ed84d2abb4a80b188e89fabece62d`.
+   - Create a Firebase project → Add Android app with package `com.faratech.faraflick`.
    - Download `google-services.json` → place it at `android/app/google-services.json`.
    - Project settings → Service accounts → Generate new private key (JSON).
 2. **OneSignal**

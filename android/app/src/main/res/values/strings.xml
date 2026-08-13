@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">flick</string>
     <string name="title_activity_main">flick</string>
-    <string name="package_name">app.lovable.p600ed84d2abb4a80b188e89fabece62d</string>
-    <string name="custom_url_scheme">app.lovable.p600ed84d2abb4a80b188e89fabece62d</string>
+    <string name="package_name">com.faratech.faraflick</string>
+    <string name="custom_url_scheme">com.faratech.faraflick</string>
 </resources>
