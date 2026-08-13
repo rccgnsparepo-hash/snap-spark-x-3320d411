@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "351628252746",
+    "project_id": "flicky-2cf7b",
+    "storage_bucket": "flicky-2cf7b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:351628252746:android:7d660bebfae87a774db8b3",
+        "android_client_info": {
+          "package_name": "com.faratech.faraflick"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "351628252746-lf6b2pr6d5kf5gk1tsdgpn5uinth29bj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAm1d6fakb03y34ZOqwtIRDM0z8ucwb-ys"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "351628252746-lf6b2pr6d5kf5gk1tsdgpn5uinth29bj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:351628252746:android:1d9381c8c89e8fa04db8b3",
+        "android_client_info": {
+          "package_name": "com.faratech.liquid"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "351628252746-lf6b2pr6d5kf5gk1tsdgpn5uinth29bj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAm1d6fakb03y34ZOqwtIRDM0z8ucwb-ys"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "351628252746-lf6b2pr6d5kf5gk1tsdgpn5uinth29bj.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
