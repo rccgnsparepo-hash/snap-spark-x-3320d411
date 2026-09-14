@@ -29,6 +29,7 @@ export default function ThreadPage() {
   const [recording, setRecording] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [signed, setSigned] = useState<Record<string, string>>({});
   const typingTimeoutRef = useRef<number | null>(null);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lastSentTypingRef = useRef<number>(0);
@@ -97,6 +98,27 @@ export default function ThreadPage() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs.length]);
 
+  // Resolve private DM attachment paths into short-lived signed URLs.
+  useEffect(() => {
+    const paths = msgs
+      .map((m) => m.media_url)
+      .filter((u): u is string => !!u && !/^https?:\/\//.test(u) && !signed[u]);
+    if (paths.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.storage.from("dm-media").createSignedUrls([...new Set(paths)], 3600);
+      if (cancelled || !data) return;
+      setSigned((prev) => {
+        const next = { ...prev };
+        for (const r of data) if (r.path && r.signedUrl) next[r.path] = r.signedUrl;
+        return next;
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [msgs, signed]);
+
+  const mediaSrc = (u: string | null) => (!u ? null : /^https?:\/\//.test(u) ? u : signed[u] ?? null);
+
   const send = async () => {
     if (!user || !userId || !text.trim()) return;
     if (blocked) { toast.error("You have blocked this user. Unblock to send."); return; }
@@ -132,10 +154,12 @@ export default function ThreadPage() {
       : f.type.startsWith("video/") ? "video"
       : f.type.startsWith("audio/") ? "audio"
       : "file";
-    const path = `${user.id}/dm-${crypto.randomUUID()}-${f.name}`;
-    const { error: e1 } = await supabase.storage.from("media").upload(path, f, { contentType: f.type });
+    const folder = [user.id, userId].sort().join("__");
+    const path = `${folder}/dm-${crypto.randomUUID()}-${f.name}`;
+    const { error: e1 } = await supabase.storage.from("dm-media").upload(path, f, { contentType: f.type });
     if (e1) { toast.error(e1.message); return; }
-    const url = supabase.storage.from("media").getPublicUrl(path).data.publicUrl;
+    // Private bucket: store the object path, resolved to a short-lived signed URL at render time.
+    const url = path;
     const expires_at = disappearSec ? new Date(Date.now() + disappearSec * 1000).toISOString() : null;
     const optimistic: Msg = { id: `local-${crypto.randomUUID()}`, sender_id: user.id, recipient_id: userId, content: f.name, media_url: url, media_type: detected, created_at: new Date().toISOString(), expires_at: expires_at ?? "", read_at: null, reply_to_id: null, reply_snippet: null };
     setMsgs((rows) => [...rows, optimistic]);
@@ -258,16 +282,18 @@ export default function ThreadPage() {
                       </div>
                     </button>
                   )}
-                  {m.media_type === "audio" && m.media_url ? (
-                    <div className="px-3 py-2"><VoiceMessage src={m.media_url} mine={mine} /></div>
-                  ) : m.media_type === "image" && m.media_url ? (
-                    <a href={m.media_url} target="_blank" rel="noreferrer">
-                      <img src={m.media_url} alt={m.content ?? ""} className="max-h-72 w-full object-cover" />
+                  {m.media_url && !mediaSrc(m.media_url) ? (
+                    <div className="px-4 py-3 text-xs text-muted-foreground">Loading attachment…</div>
+                  ) : m.media_type === "audio" && mediaSrc(m.media_url) ? (
+                    <div className="px-3 py-2"><VoiceMessage src={mediaSrc(m.media_url)!} mine={mine} /></div>
+                  ) : m.media_type === "image" && mediaSrc(m.media_url) ? (
+                    <a href={mediaSrc(m.media_url)!} target="_blank" rel="noreferrer">
+                      <img src={mediaSrc(m.media_url)!} alt={m.content ?? ""} className="max-h-72 w-full object-cover" />
                     </a>
-                  ) : m.media_type === "video" && m.media_url ? (
-                    <video src={m.media_url} controls className="max-h-72 w-full bg-black" />
-                  ) : m.media_url ? (
-                    <a href={m.media_url} target="_blank" rel="noreferrer" download className="flex items-center gap-2 px-4 py-3 underline">
+                  ) : m.media_type === "video" && mediaSrc(m.media_url) ? (
+                    <video src={mediaSrc(m.media_url)!} controls className="max-h-72 w-full bg-black" />
+                  ) : mediaSrc(m.media_url) ? (
+                    <a href={mediaSrc(m.media_url)!} target="_blank" rel="noreferrer" download className="flex items-center gap-2 px-4 py-3 underline">
                       <Paperclip className="w-4 h-4 shrink-0" />
                       <span className="truncate">{m.content || "file"}</span>
                     </a>
