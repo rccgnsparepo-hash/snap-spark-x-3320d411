@@ -282,16 +282,18 @@ export default function ThreadPage() {
                       </div>
                     </button>
                   )}
-                  {m.media_type === "audio" && m.media_url ? (
-                    <div className="px-3 py-2"><VoiceMessage src={m.media_url} mine={mine} /></div>
-                  ) : m.media_type === "image" && m.media_url ? (
-                    <a href={m.media_url} target="_blank" rel="noreferrer">
-                      <img src={m.media_url} alt={m.content ?? ""} className="max-h-72 w-full object-cover" />
+                  {m.media_url && !mediaSrc(m.media_url) ? (
+                    <div className="px-4 py-3 text-xs text-muted-foreground">Loading attachment…</div>
+                  ) : m.media_type === "audio" && mediaSrc(m.media_url) ? (
+                    <div className="px-3 py-2"><VoiceMessage src={mediaSrc(m.media_url)!} mine={mine} /></div>
+                  ) : m.media_type === "image" && mediaSrc(m.media_url) ? (
+                    <a href={mediaSrc(m.media_url)!} target="_blank" rel="noreferrer">
+                      <img src={mediaSrc(m.media_url)!} alt={m.content ?? ""} className="max-h-72 w-full object-cover" />
                     </a>
-                  ) : m.media_type === "video" && m.media_url ? (
-                    <video src={m.media_url} controls className="max-h-72 w-full bg-black" />
-                  ) : m.media_url ? (
-                    <a href={m.media_url} target="_blank" rel="noreferrer" download className="flex items-center gap-2 px-4 py-3 underline">
+                  ) : m.media_type === "video" && mediaSrc(m.media_url) ? (
+                    <video src={mediaSrc(m.media_url)!} controls className="max-h-72 w-full bg-black" />
+                  ) : mediaSrc(m.media_url) ? (
+                    <a href={mediaSrc(m.media_url)!} target="_blank" rel="noreferrer" download className="flex items-center gap-2 px-4 py-3 underline">
                       <Paperclip className="w-4 h-4 shrink-0" />
                       <span className="truncate">{m.content || "file"}</span>
                     </a>
