@@ -29,6 +29,7 @@ export default function ThreadPage() {
   const [recording, setRecording] = useState(false);
   const [peerTyping, setPeerTyping] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [signed, setSigned] = useState<Record<string, string>>({});
   const typingTimeoutRef = useRef<number | null>(null);
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lastSentTypingRef = useRef<number>(0);
