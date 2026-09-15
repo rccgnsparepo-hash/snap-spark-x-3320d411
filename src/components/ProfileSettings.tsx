@@ -4,6 +4,8 @@ import { useAuth } from "@/lib/auth";
 import { usePremium } from "@/lib/premium";
 import { UpgradeModal } from "./UpgradeModal";
 import { PushStatusCard } from "./PushStatusCard";
+import { SettingsDetail, type SettingsPanel } from "./settings/SettingsDetail";
+import { useAppPrefs } from "@/lib/appPrefs";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -12,27 +14,29 @@ type Item = { icon: React.ComponentType<{ className?: string }>; label: string; 
 export function ProfileSettings({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { signOut } = useAuth();
   const { isPremium } = usePremium();
+  const { prefs } = useAppPrefs();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [panel, setPanel] = useState<SettingsPanel | null>(null);
   const sections: { title: string; items: Item[] }[] = [
     { title: "How you use Flick", items: [
-      { icon: Bookmark, label: "Saved" },
-      { icon: Archive, label: "Archive" },
-      { icon: Activity, label: "Your activity" },
+      { icon: Bookmark, label: "Saved", onClick: () => setPanel("saved") },
+      { icon: Archive, label: "Archive", sub: String(prefs.archivedPosts?.length ?? 0), onClick: () => setPanel("archive") },
+      { icon: Activity, label: "Your activity", onClick: () => setPanel("activity") },
       { icon: Bell, label: "Notifications" },
-      { icon: Clock, label: "Time management" },
+      { icon: Clock, label: "Time management", onClick: () => setPanel("time") },
       { icon: Tablet, label: "Flick for tablets" },
     ]},
     { title: "For creators", items: [
-      { icon: BarChart3, label: "Insights" },
+      { icon: BarChart3, label: "Insights", onClick: () => setPanel("insights") },
       { icon: BadgeCheck, label: "Flick Verified", sub: isPremium ? "Active ✦" : "Upgrade", onClick: () => setUpgradeOpen(true) },
       { icon: Settings, label: "Account tools" },
     ]},
     { title: "Who can see your content", items: [
-      { icon: Lock, label: "Account privacy", sub: "Public" },
-      { icon: Star, label: "Close Friends", sub: "0" },
+      { icon: Lock, label: "Account privacy", sub: prefs.privateAccount ? "Private" : "Public", onClick: () => setPanel("privacy") },
+      { icon: Star, label: "Close Friends", sub: String(prefs.closeFriends.length), onClick: () => setPanel("closeFriends") },
       { icon: Crosshair, label: "Crossposting" },
-      { icon: Slash, label: "Blocked", sub: "0" },
-      { icon: EyeOff, label: "Hide story" },
+      { icon: Slash, label: "Blocked", onClick: () => setPanel("blocked") },
+      { icon: EyeOff, label: "Hide story", sub: String(prefs.hiddenStoryUsers.length) },
       { icon: Users, label: "Activity in Friends feed" },
     ]},
     { title: "How others interact with you", items: [
@@ -47,6 +51,7 @@ export function ProfileSettings({ open, onClose }: { open: boolean; onClose: () 
   return (
     <>
     <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
+    <SettingsDetail panel={panel} onClose={() => setPanel(null)} />
     <AnimatePresence>
       {open && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
