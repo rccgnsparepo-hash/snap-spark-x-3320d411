@@ -22,6 +22,8 @@ export type AppPrefs = {
   autoShareOnPost: boolean;
   /** Daily time limit in minutes (0 = off) */
   dailyLimitMin: number;
+  /** Your own posts hidden from your profile grid */
+  archivedPosts: string[];
 };
 
 export const DEFAULT_APP_PREFS: AppPrefs = {
@@ -35,6 +37,7 @@ export const DEFAULT_APP_PREFS: AppPrefs = {
   allowTags: true,
   autoShareOnPost: false,
   dailyLimitMin: 0,
+  archivedPosts: [],
 };
 
 const KEY = "flick:app-prefs";
