@@ -1,11 +1,32 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Volume2, VolumeX, Pause, Play } from "lucide-react";
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Volume2,
+  VolumeX,
+  Pause,
+  Play,
+  Eye,
+  ChevronUp,
+  Sparkles,
+} from "lucide-react";
 import type { StoryGroup } from "./StoriesBar";
 import { Avatar } from "./Avatar";
 import { formatDistanceToNowStrict } from "date-fns";
+import { StoryViewersOverlay } from "./StoryViewersOverlay";
+import {
+  getStoryViews,
+  recordStoryView,
+  addStoryReaction,
+  listenStoryViews,
+  type StoryViewsData,
+} from "@/lib/storyViews";
+import { useAuth } from "@/lib/auth";
 
 const DEFAULT_SEGMENT_DURATION_MS = 5500;
+const REACTION_EMOJIS = ["🔥", "❤️", "😂", "😮", "👏"] as const;
 
 export function StoryViewer({
   groups,
@@ -16,12 +37,15 @@ export function StoryViewer({
   startIndex: number;
   onClose: () => void;
 }) {
+  const { user, profile } = useAuth();
   const [gi, setGi] = useState(startIndex);
   const [si, setSi] = useState(0);
   const [progress, setProgress] = useState(0); // 0 to 1
   const [isPaused, setIsPaused] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [tapEffect, setTapEffect] = useState<"left" | "right" | null>(null);
+  const [showViewersOverlay, setShowViewersOverlay] = useState(false);
+  const [floatingEmojis, setFloatingEmojis] = useState<{ id: string; emoji: string }[]>([]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -36,15 +60,55 @@ export function StoryViewer({
     setSi(0);
     setProgress(0);
     pausedAtProgressRef.current = 0;
+    setShowViewersOverlay(false);
   }, [startIndex, groups]);
 
   const group = groups?.[gi];
   const seg = group?.segments[si];
   const isVideo = seg?.media_type === "video";
 
+  // Story views data for the active segment
+  const [viewsData, setViewsData] = useState<StoryViewsData>(() =>
+    seg ? getStoryViews(seg.id) : { totalCount: 0, viewers: [], reactions: {} }
+  );
+
+  // Sync and record story views
+  useEffect(() => {
+    if (!seg) return;
+    const current = getStoryViews(seg.id);
+    setViewsData(current);
+
+    if (user && profile) {
+      const updated = recordStoryView(seg.id, {
+        id: user.id,
+        handle: profile.handle,
+        display_name: profile.display_name,
+        avatar_url: profile.avatar_url,
+      });
+      setViewsData(updated);
+    }
+
+    const unsub = listenStoryViews(seg.id, (fresh) => {
+      setViewsData(fresh);
+    });
+
+    return () => unsub();
+  }, [seg, user, profile]);
+
+  // Pause when viewers overlay is open
+  useEffect(() => {
+    if (showViewersOverlay) {
+      setIsPaused(true);
+      if (videoRef.current) videoRef.current.pause();
+    } else {
+      setIsPaused(false);
+      if (videoRef.current) videoRef.current.play().catch(() => {});
+    }
+  }, [showViewersOverlay]);
+
   // Navigation handlers
   const advance = useCallback(() => {
-    if (!groups || !group) return;
+    if (!groups || !group || showViewersOverlay) return;
     if (si + 1 < group.segments.length) {
       setSi((prev) => prev + 1);
       setProgress(0);
@@ -57,11 +121,10 @@ export function StoryViewer({
     } else {
       onClose();
     }
-  }, [groups, group, si, gi, onClose]);
+  }, [groups, group, si, gi, onClose, showViewersOverlay]);
 
   const back = useCallback(() => {
-    if (!groups) return;
-    // If progress is more than 20% into the current segment, restart current segment first
+    if (!groups || showViewersOverlay) return;
     if (progress > 0.2) {
       setProgress(0);
       pausedAtProgressRef.current = 0;
@@ -83,19 +146,17 @@ export function StoryViewer({
       setProgress(0);
       pausedAtProgressRef.current = 0;
     } else {
-      // At beginning of first story: reset progress
       setProgress(0);
       pausedAtProgressRef.current = 0;
       startTimeRef.current = performance.now();
     }
-  }, [groups, si, gi, progress]);
+  }, [groups, si, gi, progress, showViewersOverlay]);
 
   // Main progress and timer loop
   useEffect(() => {
-    if (!seg) return;
+    if (!seg || showViewersOverlay) return;
 
     if (isVideo) {
-      // Video drives its own progress
       return;
     }
 
@@ -127,11 +188,11 @@ export function StoryViewer({
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
-  }, [seg, isPaused, isVideo, advance]);
+  }, [seg, isPaused, isVideo, advance, showViewersOverlay]);
 
   // Video time update handler
   const handleVideoTimeUpdate = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || showViewersOverlay) return;
     const dur = videoRef.current.duration;
     const cur = videoRef.current.currentTime;
     if (dur && dur > 0) {
@@ -144,28 +205,34 @@ export function StoryViewer({
   // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight") {
+      if (e.key === "Escape") {
+        if (showViewersOverlay) setShowViewersOverlay(false);
+        else onClose();
+      } else if (e.key === "ArrowRight" && !showViewersOverlay) {
         advance();
         showTapFeedback("right");
-      } else if (e.key === "ArrowLeft") {
+      } else if (e.key === "ArrowLeft" && !showViewersOverlay) {
         back();
         showTapFeedback("left");
-      } else if (e.key === " " || e.key === "Spacebar") {
+      } else if (e.key === "ArrowUp") {
+        setShowViewersOverlay(true);
+      } else if (e.key === "ArrowDown") {
+        setShowViewersOverlay(false);
+      } else if ((e.key === " " || e.key === "Spacebar") && !showViewersOverlay) {
         setIsPaused((p) => !p);
       }
     };
     if (groups) window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [groups, advance, back, onClose]);
+  }, [groups, advance, back, onClose, showViewersOverlay]);
 
   const showTapFeedback = (side: "left" | "right") => {
     setTapEffect(side);
     window.setTimeout(() => setTapEffect(null), 320);
   };
 
-  // Tap vs Long-Press handling for screen areas
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (showViewersOverlay) return;
     touchStartYRef.current = e.clientY;
     isLongPressRef.current = false;
     pressTimerRef.current = window.setTimeout(() => {
@@ -177,21 +244,25 @@ export function StoryViewer({
 
   const handlePointerUp = (side: "left" | "right", e: React.PointerEvent) => {
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    if (showViewersOverlay) return;
 
-    // Check vertical swipe down to dismiss
     const deltaY = e.clientY - touchStartYRef.current;
+    // Swipe down to dismiss story
     if (deltaY > 90) {
       onClose();
       return;
     }
+    // Swipe up to open viewers overlay!
+    if (deltaY < -60) {
+      setShowViewersOverlay(true);
+      return;
+    }
 
     if (isLongPressRef.current) {
-      // Long press ended: resume playback
       isLongPressRef.current = false;
       setIsPaused(false);
       if (videoRef.current) videoRef.current.play().catch(() => {});
     } else {
-      // Short tap: navigate
       showTapFeedback(side);
       if (side === "left") {
         back();
@@ -204,8 +275,29 @@ export function StoryViewer({
   const handlePointerCancel = () => {
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
     isLongPressRef.current = false;
-    setIsPaused(false);
-    if (videoRef.current) videoRef.current.play().catch(() => {});
+    if (!showViewersOverlay) {
+      setIsPaused(false);
+      if (videoRef.current) videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleQuickReaction = (emoji: string) => {
+    if (!seg) return;
+    const actor = profile || {
+      id: user?.id || "u-current",
+      handle: "me",
+      display_name: "You",
+      avatar_url: null,
+    };
+    const updated = addStoryReaction(seg.id, actor, emoji);
+    setViewsData(updated);
+
+    // Floating reaction animation
+    const id = `float-${Date.now()}-${Math.random()}`;
+    setFloatingEmojis((prev) => [...prev, { id, emoji }]);
+    setTimeout(() => {
+      setFloatingEmojis((prev) => prev.filter((item) => item.id !== id));
+    }, 1400);
   };
 
   return (
@@ -323,7 +415,7 @@ export function StoryViewer({
 
             {/* Story Caption Overlay */}
             {seg.caption && (
-              <div className="absolute bottom-16 inset-x-0 text-center text-white text-base md:text-lg font-semibold px-6 drop-shadow-xl z-20 pointer-events-none">
+              <div className="absolute bottom-20 inset-x-0 text-center text-white text-base md:text-lg font-semibold px-6 drop-shadow-xl z-20 pointer-events-none">
                 <span className="inline-block px-4 py-2 rounded-2xl bg-black/60 backdrop-blur-md border border-white/10">
                   {seg.caption}
                 </span>
@@ -343,7 +435,6 @@ export function StoryViewer({
               onPointerCancel={handlePointerCancel}
               className="w-2/5 h-full relative cursor-pointer group focus:outline-none flex items-center"
             >
-              {/* Subtle visual hover cue */}
               <div className="absolute left-3 w-10 h-10 rounded-full bg-black/35 backdrop-blur-md border border-white/15 opacity-0 group-hover:opacity-80 transition-opacity flex items-center justify-center text-white pointer-events-none">
                 <ChevronLeft className="w-6 h-6 -ml-0.5" />
               </div>
@@ -359,11 +450,90 @@ export function StoryViewer({
               onPointerCancel={handlePointerCancel}
               className="w-3/5 h-full relative cursor-pointer group focus:outline-none flex items-center justify-end"
             >
-              {/* Subtle visual hover cue */}
               <div className="absolute right-3 w-10 h-10 rounded-full bg-black/35 backdrop-blur-md border border-white/15 opacity-0 group-hover:opacity-80 transition-opacity flex items-center justify-center text-white pointer-events-none">
                 <ChevronRight className="w-6 h-6 ml-0.5" />
               </div>
             </div>
+          </div>
+
+          {/* BOTTOM INTERACTIVE BAR: Viewers Count Trigger & Quick Reactions */}
+          <div
+            className="absolute bottom-4 inset-x-4 z-40 pointer-events-auto flex items-center justify-between gap-3"
+            style={{ paddingBottom: "max(0.25rem, env(safe-area-inset-bottom))" }}
+          >
+            {/* Viewers Overlay Trigger Pill */}
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              type="button"
+              onClick={() => setShowViewersOverlay(true)}
+              className="bg-black/60 hover:bg-black/80 backdrop-blur-xl border border-white/20 rounded-full py-1.5 px-3 flex items-center gap-2 shadow-xl group transition-colors"
+              title="View story viewers and analytics"
+            >
+              {/* Mini avatar stack of first 3 viewers */}
+              <div className="flex -space-x-2 shrink-0">
+                {viewsData.viewers.slice(0, 3).map((v, idx) => (
+                  <div
+                    key={v.id || idx}
+                    className="w-6 h-6 rounded-full border-2 border-black overflow-hidden bg-secondary relative"
+                  >
+                    <Avatar url={v.avatar_url} name={v.display_name} size={24} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Total Viewers Count */}
+              <div className="flex items-center gap-1.5 text-white">
+                <Eye className="w-3.5 h-3.5 text-snap" />
+                <span className="text-xs font-bold leading-none">
+                  {viewsData.totalCount} {viewsData.totalCount === 1 ? "view" : "views"}
+                </span>
+                <ChevronUp className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-transform group-hover:-translate-y-0.5" />
+              </div>
+            </motion.button>
+
+            {/* Quick Emoji Reaction Pill */}
+            <div className="bg-black/60 backdrop-blur-xl border border-white/20 rounded-full py-1 px-2 flex items-center gap-1 shadow-xl">
+              {REACTION_EMOJIS.map((emoji) => (
+                <motion.button
+                  key={emoji}
+                  whileHover={{ scale: 1.25 }}
+                  whileTap={{ scale: 0.85 }}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleQuickReaction(emoji);
+                  }}
+                  className="w-7 h-7 rounded-full hover:bg-white/10 flex items-center justify-center text-sm transition"
+                  title={`React ${emoji}`}
+                >
+                  {emoji}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Floating Emoji Reaction Particles */}
+          <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+            <AnimatePresence>
+              {floatingEmojis.map(({ id, emoji }) => (
+                <motion.div
+                  key={id}
+                  initial={{ opacity: 1, scale: 0.6, y: window.innerHeight - 100, x: window.innerWidth * 0.7 }}
+                  animate={{
+                    opacity: 0,
+                    scale: 2.2,
+                    y: window.innerHeight * 0.35,
+                    x: window.innerWidth * 0.65 + (Math.random() * 60 - 30),
+                  }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.2, ease: "easeOut" }}
+                  className="absolute text-4xl drop-shadow-2xl"
+                >
+                  {emoji}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
 
           {/* Tap Feedback Ripples / Indicators */}
@@ -392,9 +562,9 @@ export function StoryViewer({
             )}
           </AnimatePresence>
 
-          {/* Paused Indicator Overlay */}
+          {/* Paused Indicator Overlay (shows only when manually paused and overlay closed) */}
           <AnimatePresence>
-            {isPaused && (
+            {isPaused && !showViewersOverlay && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -405,6 +575,16 @@ export function StoryViewer({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Story Viewers Overlay Drawer */}
+          <StoryViewersOverlay
+            open={showViewersOverlay}
+            onClose={() => setShowViewersOverlay(false)}
+            viewsData={viewsData}
+            storyCaption={seg.caption}
+            storyMediaUrl={seg.image_url}
+            storyCreatedAt={seg.created_at}
+          />
         </motion.div>
       )}
     </AnimatePresence>
