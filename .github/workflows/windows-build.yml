@@ -1,4 +1,4 @@
-name: Windows EXE Build
+name: Windows EXE Build & Release
 
 on:
   push:
@@ -7,12 +7,9 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build-windows:
-    name: Build Windows Desktop Installer (.exe)
+    name: Build Windows Executable Installer
     runs-on: windows-latest
 
     steps:
@@ -23,28 +20,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
+          # Note: omit cache: 'npm' so it does not fail if package-lock.json is absent
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build web application
+      - name: Build Web SPA
         run: npm run build
 
-      - name: Build Windows Executable (.exe)
-        run: npx electron-builder --win --x64
+      - name: Build Windows Executable (NSIS & Portable)
+        run: npx electron-builder --win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify build artifacts
+      - name: List Generated Executables
         shell: bash
         run: |
-          echo "=== Windows Release Artifacts ==="
-          ls -lh release/*.exe
+          echo "=== Generated Windows Executable Binaries ==="
+          ls -lh release/*.exe || ls -lh release/
 
-      - name: Upload Windows Installer (.exe) Artifact
+      - name: Upload Windows Executable Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Flick-Windows-Installer
-          path: release/*.exe
+          name: flick-windows-installer
+          path: |
+            release/*.exe
+            release/*.blockmap
           if-no-files-found: error
+          retention-days: 14
