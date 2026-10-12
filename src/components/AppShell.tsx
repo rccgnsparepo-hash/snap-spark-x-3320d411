@@ -19,6 +19,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { CoachMark } from "./CoachMark";
 import { ScrollHint } from "./ScrollHint";
 import { NotificationsInbox } from "./NotificationsInbox";
+import { NotchNotification } from "./notifications/NotchNotification";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { initWebPush, linkWebPushUser, unlinkWebPushUser } from "@/lib/webPush";
@@ -27,9 +28,7 @@ import { bindNotificationRouter } from "@/lib/native/appLifecycle";
 import { payloadToPath, navigateOnce, type NotifPayload } from "@/lib/native/deepLink";
 import { setGlobalBadge } from "@/lib/notifications/badge";
 import { useLenis } from "@/lib/useLenis";
-const RightRail = lazy(() =>
-  import("./layout/RightRail").then((m) => ({ default: m.RightRail })),
-);
+const RightRail = lazy(() => import("./layout/RightRail").then((m) => ({ default: m.RightRail })));
 
 const tabs: { to: string; icon: typeof Home; label: string; center?: boolean }[] = [
   { to: "/", icon: Home, label: "Home" },
@@ -437,6 +436,7 @@ export function AppShell() {
       <CoachMark />
       {!fullBleed && <ScrollHint />}
       <NotificationsInbox open={inboxOpen} onClose={() => setInboxOpen(false)} />
+      <NotchNotification />
     </div>
   );
 }

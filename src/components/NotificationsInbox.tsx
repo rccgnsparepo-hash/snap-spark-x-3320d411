@@ -25,6 +25,12 @@ import { Avatar } from "@/components/Avatar";
 import { dedupe, sectionize, priorityOf, type NotifRow } from "@/lib/notifications/group";
 import { useNotifPrefs, type NotifPrefs } from "@/lib/notifications/prefs";
 import { toast } from "sonner";
+import {
+  triggerNotchNotification,
+  getStoredNotchStyle,
+  setStoredNotchStyle,
+  type NotchStyle,
+} from "@/components/notifications/NotchNotification";
 
 const readPerm = (): NotificationPermission =>
   typeof Notification === "undefined" ? "denied" : Notification.permission;
@@ -322,7 +328,14 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
                   exit={{ height: 0, opacity: 0 }}
                   className="border-b-2 border-border overflow-hidden shrink-0"
                 >
-                  <PrefsPanel prefs={prefs} update={update} />
+                  <PrefsPanel
+                    prefs={prefs}
+                    update={update}
+                    onAddDemoItem={(item) => {
+                      setItems((prev) => [item, ...prev]);
+                      ping();
+                    }}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -596,38 +609,184 @@ const TOGGLES: { key: keyof NotifPrefs; label: string }[] = [
 function PrefsPanel({
   prefs,
   update,
+  onAddDemoItem,
 }: {
   prefs: NotifPrefs;
   update: (p: Partial<NotifPrefs>) => void;
+  onAddDemoItem?: (item: any) => void;
 }) {
+  const [currentStyle, setCurrentStyle] = useState<NotchStyle>(getStoredNotchStyle);
+
+  const switchStyle = (s: NotchStyle) => {
+    setCurrentStyle(s);
+    setStoredNotchStyle(s);
+    toast.success(`Switched notch style to ${s.toUpperCase()}`);
+  };
+
+  const simulateNotch = (kind: "message" | "like" | "story" | "live") => {
+    const demoActors = [
+      {
+        id: "u-1",
+        handle: "sarah_k",
+        display_name: "Sarah Kim",
+        avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
+      },
+      {
+        id: "u-2",
+        handle: "marcus_dev",
+        display_name: "Marcus Vance",
+        avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+      },
+      {
+        id: "u-3",
+        handle: "elena_sound",
+        display_name: "Elena Rostova",
+        avatar_url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop&crop=face",
+      },
+    ];
+
+    let title = "";
+    let message = "";
+    let url = "/";
+    const actor = demoActors[Math.floor(Math.random() * demoActors.length)];
+
+    if (kind === "message") {
+      title = `${actor.display_name} sent a message`;
+      message = "Hey! Did you see the new fluid animation update on Flick? 🔥";
+      url = `/messages/${actor.id}`;
+    } else if (kind === "like") {
+      title = `${actor.display_name} liked your flick`;
+      message = "Your golden hour photo set received a reaction! 💖";
+      url = "/";
+    } else if (kind === "story") {
+      title = `${actor.display_name} added a new story`;
+      message = "Tap to view full-screen story highlights 📸";
+      url = "/";
+    } else if (kind === "live") {
+      title = `${actor.display_name} is recording audio live`;
+      message = "Broadcasting creator voice note · 0:14 📻";
+      url = "/";
+    }
+
+    triggerNotchNotification({
+      kind: kind === "live" ? "system" : kind,
+      title,
+      message,
+      url,
+      actor,
+    });
+
+    if (onAddDemoItem) {
+      onAddDemoItem({
+        id: `demo-${Date.now()}`,
+        kind: kind === "live" ? "message" : kind,
+        title,
+        body: message,
+        url,
+        actor_id: actor.id,
+        created_at: new Date().toISOString(),
+        read_at: null,
+      });
+    }
+  };
+
   return (
-    <div className="px-4 py-3 space-y-2 bg-secondary/30">
-      <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-        Preferences
-      </div>
-      <div className="grid grid-cols-2 gap-1.5">
-        {TOGGLES.map((t) => {
-          const on = prefs[t.key] as boolean;
-          return (
+    <div className="px-4 py-3 space-y-3 bg-secondary/30">
+      {/* iOS Notch Style Customizer */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-snap">
+            iOS Dynamic Notch Style
+          </span>
+          <span className="text-[10px] font-mono uppercase text-muted-foreground px-2 py-0.5 rounded bg-secondary">
+            {currentStyle}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {[
+            { id: "island", label: "🏝️ Dynamic Island", desc: "Apple compact pill" },
+            { id: "expanded", label: "📱 Expanded Banner", desc: "iOS full action card" },
+            { id: "glow", label: "✨ Neon Capsule", desc: "Frosted color halo" },
+            { id: "live", label: "📻 Live Activity", desc: "Equalizer & timer" },
+          ].map((s) => (
             <button
-              key={t.key}
-              onClick={() => update({ [t.key]: !on } as Partial<NotifPrefs>)}
-              className={`h-10 rounded-xl px-3 text-xs font-semibold text-left flex items-center justify-between ${
-                on ? "bg-snap/15 text-foreground" : "bg-secondary text-muted-foreground"
+              key={s.id}
+              onClick={() => switchStyle(s.id as NotchStyle)}
+              className={`p-2 rounded-xl text-left transition border ${
+                currentStyle === s.id
+                  ? "bg-snap/20 border-snap text-foreground ring-1 ring-snap/30"
+                  : "bg-secondary/60 border-border/50 text-muted-foreground hover:bg-secondary"
               }`}
             >
-              <span className="truncate">{t.label}</span>
-              <span
-                className={`w-8 h-4 rounded-full relative shrink-0 ${on ? "bg-snap" : "bg-muted-foreground/30"}`}
-              >
-                <span
-                  className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${on ? "left-4" : "left-0.5"}`}
-                />
-              </span>
+              <div className="text-xs font-bold truncate leading-tight">{s.label}</div>
+              <div className="text-[10px] text-muted-foreground truncate mt-0.5">{s.desc}</div>
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
+
+      {/* Instant Notch Push Simulator */}
+      <div className="pt-2 border-t border-border/60 space-y-1.5">
+        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          Simulate Incoming Notch Notification
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            onClick={() => simulateNotch("message")}
+            className="h-8 rounded-lg bg-secondary hover:bg-secondary/80 text-[11px] font-semibold flex items-center justify-center gap-1.5 text-purple-300 transition"
+          >
+            💬 Direct Message
+          </button>
+          <button
+            onClick={() => simulateNotch("like")}
+            className="h-8 rounded-lg bg-secondary hover:bg-secondary/80 text-[11px] font-semibold flex items-center justify-center gap-1.5 text-pink-300 transition"
+          >
+            💖 Like Reaction
+          </button>
+          <button
+            onClick={() => simulateNotch("story")}
+            className="h-8 rounded-lg bg-secondary hover:bg-secondary/80 text-[11px] font-semibold flex items-center justify-center gap-1.5 text-cyan-300 transition"
+          >
+            📸 New Story
+          </button>
+          <button
+            onClick={() => simulateNotch("live")}
+            className="h-8 rounded-lg bg-secondary hover:bg-secondary/80 text-[11px] font-semibold flex items-center justify-center gap-1.5 text-snap transition"
+          >
+            📻 Live Equalizer
+          </button>
+        </div>
+      </div>
+
+      <div className="pt-2 border-t border-border/60 space-y-1.5">
+        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          Preferences
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {TOGGLES.map((t) => {
+            const on = prefs[t.key] as boolean;
+            return (
+              <button
+                key={t.key}
+                onClick={() => update({ [t.key]: !on } as Partial<NotifPrefs>)}
+                className={`h-10 rounded-xl px-3 text-xs font-semibold text-left flex items-center justify-between ${
+                  on ? "bg-snap/15 text-foreground" : "bg-secondary text-muted-foreground"
+                }`}
+              >
+                <span className="truncate">{t.label}</span>
+                <span
+                  className={`w-8 h-4 rounded-full relative shrink-0 ${on ? "bg-snap" : "bg-muted-foreground/30"}`}
+                >
+                  <span
+                    className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-all ${on ? "left-4" : "left-0.5"}`}
+                  />
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <button
         onClick={() => update({ quietHours: !prefs.quietHours })}
         className={`w-full h-10 rounded-xl px-3 text-xs font-semibold flex items-center justify-between ${

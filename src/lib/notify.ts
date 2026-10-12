@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { triggerNotchNotification } from "@/components/notifications/NotchNotification";
 
 export type NotifyKind = "post" | "message" | "story" | "comment" | "like" | "mention";
 
@@ -78,22 +79,34 @@ async function send(input: NotifyInput, attempts = 3): Promise<boolean> {
 
 export async function notify(input: NotifyInput) {
   try {
+    const who = input.actor?.display_name ?? input.actor?.handle ?? "Someone";
+    const fallbackTitle =
+      input.kind === "like"
+        ? `${who} liked your flick`
+        : input.kind === "comment"
+          ? `${who} commented on your flick`
+          : input.kind === "message"
+            ? `${who} sent you a message`
+            : input.kind === "story"
+              ? `${who} posted a story`
+              : input.kind === "post"
+                ? `${who} just flicked`
+                : `${who} updated something`;
+
+    // Trigger instant iOS Notch notification in the app
+    triggerNotchNotification({
+      kind: input.kind,
+      title: input.title ?? fallbackTitle,
+      message: input.message,
+      url: input.url,
+      actor: input.actor,
+      data: input.data,
+    });
+    window.dispatchEvent(new Event("flick:notifications-updated"));
+
     // In-app inbox rows (only for known recipients, never the actor themselves).
     if (input.recipients?.length) {
       const actorId = input.actor?.id ?? null;
-      const who = input.actor?.display_name ?? input.actor?.handle ?? "Someone";
-      const fallbackTitle =
-        input.kind === "like"
-          ? `${who} liked your flick`
-          : input.kind === "comment"
-            ? `${who} commented on your flick`
-            : input.kind === "message"
-              ? `${who} sent you a message`
-              : input.kind === "story"
-                ? `${who} posted a story`
-                : input.kind === "post"
-                  ? `${who} just flicked`
-                  : `${who} updated something`;
       const rows = input.recipients
         .filter((r) => r && r !== actorId)
         .map((user_id) => ({

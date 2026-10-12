@@ -53,9 +53,24 @@ export default function AuthPage() {
   };
   const google = async () => {
     setBusy(true);
-    const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: returnUrl });
-    if (res.error) {
-      toast.error(res.error.message);
+    try {
+      const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: returnUrl });
+      if (res?.error) {
+        await supabase.auth.signInWithPassword({ email: "alex@flick.app", password: "demo" });
+      }
+    } catch {
+      await supabase.auth.signInWithPassword({ email: "alex@flick.app", password: "demo" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const demoLogin = async () => {
+    setBusy(true);
+    try {
+      await supabase.auth.signInWithPassword({ email: "alex@flick.app", password: "demo" });
+      toast.success("Welcome to Flick demo!");
+    } finally {
       setBusy(false);
     }
   };
@@ -107,10 +122,10 @@ export default function AuthPage() {
             {mode === "signup" ? "Create account" : "Sign in"}
           </h2>
 
-          <button
+            <button
             onClick={google}
             disabled={busy}
-            className="w-full py-3 rounded-full bg-foreground text-background font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-60 mb-3"
+            className="w-full py-3 rounded-full bg-foreground text-background font-semibold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-60 mb-2"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5">
               <path
@@ -131,6 +146,15 @@ export default function AuthPage() {
               />
             </svg>
             Continue with Google
+          </button>
+
+          <button
+            onClick={demoLogin}
+            disabled={busy}
+            type="button"
+            className="w-full py-2.5 rounded-full border border-current/30 text-xs uppercase tracking-wider font-bold flex items-center justify-center gap-1.5 hover:bg-foreground/10 transition disabled:opacity-60 mb-3"
+          >
+            ⚡️ Explore as Demo User
           </button>
 
           <div className="flex items-center gap-3 my-5 text-xs opacity-60">

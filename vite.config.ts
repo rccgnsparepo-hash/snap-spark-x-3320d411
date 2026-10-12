@@ -8,7 +8,7 @@ import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 import path from "node:path";
 
 export default defineConfig(({ mode }) => ({
-  server: { host: "::", port: 8080, strictPort: true },
+  server: { host: "0.0.0.0", port: 3000, strictPort: true, allowedHosts: true },
   plugins: [
     react(),
     tailwindcss(),
