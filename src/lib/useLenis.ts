@@ -9,22 +9,25 @@ import Lenis from "lenis";
 export function useLenis(wrapperRef?: RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const coarse = window.matchMedia("(pointer: coarse)").matches;
-    if (reduce || coarse) return; // native scroll on mobile / a11y
-    const wrapper = wrapperRef?.current ?? undefined;
-    const lenis = new Lenis({
-      ...(wrapper
-        ? { wrapper, content: (wrapper.firstElementChild as HTMLElement) ?? wrapper }
-        : {}),
-      duration: 1.05,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smoothWheel: true,
-      wheelMultiplier: 0.9,
-    });
-    let rafId = 0;
-    const raf = (time: number) => { lenis.raf(time); rafId = requestAnimationFrame(raf); };
-    rafId = requestAnimationFrame(raf);
-    return () => { cancelAnimationFrame(rafId); lenis.destroy(); };
+    const el = wrapperRef?.current || document.querySelector<HTMLElement>("[data-app-viewport]");
+    if (!el) return;
+
+    // Apply native CSS smooth scrolling to container
+    el.style.scrollBehavior = "smooth";
+    el.style.overscrollBehaviorY = "contain";
+
+    const onCustomScroll = (e: Event) => {
+      const detail = (e as CustomEvent<{ top?: number; delta?: number }>).detail;
+      if (typeof detail?.delta === "number") {
+        el.scrollBy({ top: detail.delta, behavior: "smooth" });
+      } else if (typeof detail?.top === "number") {
+        el.scrollTo({ top: detail.top, behavior: "smooth" });
+      }
+    };
+
+    window.addEventListener("flick:smooth-scroll", onCustomScroll);
+    return () => {
+      window.removeEventListener("flick:smooth-scroll", onCustomScroll);
+    };
   }, [wrapperRef]);
 }

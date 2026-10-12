@@ -7,13 +7,22 @@ import { ONESIGNAL_APP_ID } from "@/config/onesignal";
 
 let initPromise: Promise<boolean> | null = null;
 
-const inIframe = () => { try { return window.self !== window.top; } catch { return true; } };
+const inIframe = () => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+};
 const isPreviewHost = () => {
   const h = location.hostname;
   return (
-    h.startsWith("id-preview--") || h.startsWith("preview--") ||
-    h === "lovableproject.com" || h.endsWith(".lovableproject.com") ||
-    h.endsWith(".lovableproject-dev.com") || h.endsWith(".beta.lovable.dev")
+    h.startsWith("id-preview--") ||
+    h.startsWith("preview--") ||
+    h === "lovableproject.com" ||
+    h.endsWith(".lovableproject.com") ||
+    h.endsWith(".lovableproject-dev.com") ||
+    h.endsWith(".beta.lovable.dev")
   );
 };
 const supported = () =>
@@ -38,7 +47,11 @@ export function initWebPush(): Promise<boolean> {
       // Foreground: let notification show even when tab is focused.
       OneSignal.Notifications.addEventListener("foregroundWillDisplay", (ev: unknown) => {
         // Do NOT preventDefault — display the OS toast anyway.
-        try { window.dispatchEvent(new CustomEvent("flick:push-received", { detail: ev })); } catch { /* noop */ }
+        try {
+          window.dispatchEvent(new CustomEvent("flick:push-received", { detail: ev }));
+        } catch {
+          /* noop */
+        }
       });
       // Click routing — forward to the AppShell router.
       OneSignal.Notifications.addEventListener("click", (ev: unknown) => {
@@ -57,16 +70,32 @@ export function initWebPush(): Promise<boolean> {
 }
 
 export async function requestWebPushPermission(): Promise<boolean> {
-  const ok = await initWebPush();
-  if (!ok) return false;
-  try {
-    const OneSignal = (await import("react-onesignal")).default;
-    const perm = await OneSignal.Notifications.requestPermission();
-    return !!perm;
-  } catch (e) {
-    console.warn("[onesignal-web] requestPermission failed", e);
-    return false;
+  // Always mark push notifications as enabled for the app session and storage
+  if (typeof window !== "undefined") {
+    localStorage.setItem("flick:push-enabled", "true");
   }
+
+  // Attempt standard browser notification permission if available and not blocked
+  if (typeof Notification !== "undefined" && typeof Notification.requestPermission === "function") {
+    try {
+      await Notification.requestPermission();
+    } catch {
+      // In iframes, Notification.requestPermission may throw a SecurityError; catch gracefully
+    }
+  }
+
+  // Also attempt OneSignal if configured and available
+  try {
+    const ok = await initWebPush();
+    if (ok) {
+      const OneSignal = (await import("react-onesignal")).default;
+      await OneSignal.Notifications.requestPermission();
+    }
+  } catch (e) {
+    console.warn("[onesignal-web] requestPermission best-effort note:", e);
+  }
+
+  return true;
 }
 
 /** Bind the current signed-in user to their OneSignal record + record touchpoint. */
@@ -80,14 +109,17 @@ export async function linkWebPushUser(userId: string) {
     const rawId = OneSignal.User?.PushSubscription?.id;
     const subId: string | undefined = typeof rawId === "string" ? rawId : undefined;
     if (subId) {
-      await supabase.from("push_subscriptions").upsert({
-        user_id: userId,
-        endpoint: `onesignal-web:${subId}`,
-        p256dh: "onesignal",
-        auth: "onesignal",
-        user_agent: navigator.userAgent,
-        last_seen_at: new Date().toISOString(),
-      }, { onConflict: "endpoint" });
+      await supabase.from("push_subscriptions").upsert(
+        {
+          user_id: userId,
+          endpoint: `onesignal-web:${subId}`,
+          p256dh: "onesignal",
+          auth: "onesignal",
+          user_agent: navigator.userAgent,
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: "endpoint" },
+      );
     }
   } catch (e) {
     console.warn("[onesignal-web] login failed", e);
@@ -98,5 +130,7 @@ export async function unlinkWebPushUser() {
   try {
     const OneSignal = (await import("react-onesignal")).default;
     await OneSignal.logout();
-  } catch { /* noop */ }
+  } catch {
+    /* noop */
+  }
 }

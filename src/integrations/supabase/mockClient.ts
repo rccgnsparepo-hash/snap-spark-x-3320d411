@@ -22,15 +22,62 @@ const DEFAULT_PROFILES = [
     id: "u-current",
     handle: "flicker_demo",
     display_name: "Alex Rivera",
-    avatar_url: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=face",
+    avatar_url:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=face",
     bio: "Visual storyteller & digital creator ⚡️ Building the future of real-time feeds.",
     created_at: new Date(Date.now() - 86400000 * 30).toISOString(),
+  },
+  {
+    id: "u-seraph",
+    handle: "askarounditsseraph",
+    display_name: "askarounditsseraph",
+    avatar_url:
+      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=face",
+    bio: "Always around ✨ Tap to connect.",
+    created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
+  },
+  {
+    id: "u-beauty",
+    handle: "beautylucky",
+    display_name: "beautylucky",
+    avatar_url:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face",
+    bio: "Living lucky 🍀 Telegram - 9156301897",
+    created_at: new Date(Date.now() - 86400000 * 18).toISOString(),
+  },
+  {
+    id: "u-ann",
+    handle: "Ann_aa",
+    display_name: "Ann_aa",
+    avatar_url:
+      "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop&crop=face",
+    bio: "Design & chill ✨",
+    created_at: new Date(Date.now() - 86400000 * 15).toISOString(),
+  },
+  {
+    id: "u-taj",
+    handle: "tajndnk",
+    display_name: "tajndnk",
+    avatar_url:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+    bio: "Creator on Flick 🚀",
+    created_at: new Date(Date.now() - 86400000 * 12).toISOString(),
+  },
+  {
+    id: "u-clumsy",
+    handle: "clumsylol",
+    display_name: "clumsylol",
+    avatar_url:
+      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face",
+    bio: "How far? I dey o 💫",
+    created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
   },
   {
     id: "u-1",
     handle: "sarah_k",
     display_name: "Sarah Kim",
-    avatar_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
+    avatar_url:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face",
     bio: "Designing the future 🎨 UI/UX & street photography.",
     created_at: new Date(Date.now() - 86400000 * 20).toISOString(),
   },
@@ -38,25 +85,10 @@ const DEFAULT_PROFILES = [
     id: "u-2",
     handle: "marcus_dev",
     display_name: "Marcus Vance",
-    avatar_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+    avatar_url:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
     bio: "Building fast web apps 🚀 Coffee, code, and creative computing.",
     created_at: new Date(Date.now() - 86400000 * 15).toISOString(),
-  },
-  {
-    id: "u-3",
-    handle: "elena_sound",
-    display_name: "Elena Rostova",
-    avatar_url: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop&crop=face",
-    bio: "Indie beats & ambient vibes 🎧 Night owls unite.",
-    created_at: new Date(Date.now() - 86400000 * 10).toISOString(),
-  },
-  {
-    id: "u-4",
-    handle: "kai_vision",
-    display_name: "Kai Tanaka",
-    avatar_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face",
-    bio: "Cyberpunk aesthetics, neon streets, and anime sketching.",
-    created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
   },
 ];
 
@@ -73,7 +105,8 @@ const DEFAULT_POSTS = [
   {
     id: "post-2",
     author_id: "u-2",
-    content: "Just shipped instant audio notes and fluid gesture replies on Flick! What feature should we build next? 🚀",
+    content:
+      "Just shipped instant audio notes and fluid gesture replies on Flick! What feature should we build next? 🚀",
     image_url: null,
     media_url: null,
     media_type: "text",
@@ -174,13 +207,143 @@ const DEFAULT_MESSAGES = [
     reply_snippet: null,
   },
   {
-    id: "m-2",
-    sender_id: "u-2",
+    id: "m-s1",
+    sender_id: "u-seraph",
     recipient_id: "u-current",
-    content: "Are you coming to the creator meetup this Friday?",
+    content: "Thank yawww",
     media_url: null,
     media_type: null,
-    created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+    created_at: new Date(Date.now() - 1000 * 60 * 95).toISOString(),
+    expires_at: null,
+    read_at: new Date().toISOString(),
+    reply_to_id: null,
+    reply_snippet: null,
+  },
+  {
+    id: "m-s2",
+    sender_id: "u-current",
+    recipient_id: "u-seraph",
+    content: "Why u not complete am na",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+    expires_at: null,
+    read_at: new Date().toISOString(),
+    reply_to_id: null,
+    reply_snippet: null,
+  },
+  {
+    id: "m-s3",
+    sender_id: "u-current",
+    recipient_id: "u-seraph",
+    content: "And I'm not texting u here no more",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
+    expires_at: null,
+    read_at: new Date().toISOString(),
+    reply_to_id: "m-s2",
+    reply_snippet: "Complete what?",
+  },
+  {
+    id: "m-s4",
+    sender_id: "u-seraph",
+    recipient_id: "u-current",
+    content: "Sure bro",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    expires_at: null,
+    read_at: new Date().toISOString(),
+    reply_to_id: null,
+    reply_snippet: null,
+  },
+  {
+    id: "m-s5",
+    sender_id: "u-seraph",
+    recipient_id: "u-current",
+    content: "Nvm",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+    expires_at: null,
+    read_at: new Date().toISOString(),
+    reply_to_id: "m-s3",
+    reply_snippet: "Complete what?",
+  },
+  {
+    id: "m-s6",
+    sender_id: "u-current",
+    recipient_id: "u-seraph",
+    content: "Ptewww",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+    expires_at: null,
+    read_at: new Date().toISOString(),
+    reply_to_id: "m-s4",
+    reply_snippet: "Sure bro",
+  },
+  {
+    id: "m-s7",
+    sender_id: "u-current",
+    recipient_id: "u-seraph",
+    content: "You asked them for ₦20,000",
+    media_url: null,
+    media_type: "transfer",
+    created_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    expires_at: null,
+    read_at: new Date().toISOString(),
+    reply_to_id: null,
+    reply_snippet: null,
+  },
+  {
+    id: "m-s8",
+    sender_id: "u-seraph",
+    recipient_id: "u-current",
+    content: "Its always out of curiosity",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
+    expires_at: null,
+    read_at: new Date().toISOString(),
+    reply_to_id: null,
+    reply_snippet: null,
+  },
+  {
+    id: "m-b1",
+    sender_id: "u-current",
+    recipient_id: "u-beauty",
+    content: "telegram - 9156301897",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 16).toISOString(),
+    expires_at: null,
+    read_at: null,
+    reply_to_id: null,
+    reply_snippet: null,
+  },
+  {
+    id: "m-a1",
+    sender_id: "u-current",
+    recipient_id: "u-ann",
+    content: "stfu",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 16).toISOString(),
+    expires_at: null,
+    read_at: null,
+    reply_to_id: null,
+    reply_snippet: null,
+  },
+  {
+    id: "m-t1",
+    sender_id: "u-taj",
+    recipient_id: "u-current",
+    content: "Yo check the update",
+    media_url: null,
+    media_type: null,
+    created_at: new Date(Date.now() - 1000 * 60 * 17).toISOString(),
     expires_at: null,
     read_at: null,
     reply_to_id: null,
@@ -195,7 +358,8 @@ export function createMockSupabaseClient() {
   if (!localStorage.getItem(LS_PREFIX + "profiles")) setStorage("profiles", DEFAULT_PROFILES);
   if (!localStorage.getItem(LS_PREFIX + "posts")) setStorage("posts", DEFAULT_POSTS);
   if (!localStorage.getItem(LS_PREFIX + "stories")) setStorage("stories", DEFAULT_STORIES);
-  if (!localStorage.getItem(LS_PREFIX + "daily_challenges")) setStorage("daily_challenges", DEFAULT_CHALLENGES);
+  if (!localStorage.getItem(LS_PREFIX + "daily_challenges"))
+    setStorage("daily_challenges", DEFAULT_CHALLENGES);
   if (!localStorage.getItem(LS_PREFIX + "likes")) setStorage("likes", DEFAULT_LIKES);
   if (!localStorage.getItem(LS_PREFIX + "messages")) setStorage("messages", DEFAULT_MESSAGES);
   if (!localStorage.getItem(LS_PREFIX + "notifications")) setStorage("notifications", []);
@@ -207,7 +371,9 @@ export function createMockSupabaseClient() {
   const getSavedUser = () => {
     const raw = localStorage.getItem("flick:mock_user");
     if (raw) {
-      try { return JSON.parse(raw); } catch {}
+      try {
+        return JSON.parse(raw);
+      } catch {}
     }
     // Default active user is the demo profile
     return {
@@ -229,7 +395,11 @@ export function createMockSupabaseClient() {
 
   const notifyAuth = (event: string) => {
     authListeners.forEach((fn) => {
-      try { fn(event, currentSession); } catch (e) { console.error(e); }
+      try {
+        fn(event, currentSession);
+      } catch (e) {
+        console.error(e);
+      }
     });
   };
 
@@ -239,7 +409,9 @@ export function createMockSupabaseClient() {
   const resolveAuthor = (authorId: string) => {
     const profiles = getTable("profiles");
     const p = profiles.find((x) => x.id === authorId);
-    return p ? { id: p.id, handle: p.handle, display_name: p.display_name, avatar_url: p.avatar_url } : null;
+    return p
+      ? { id: p.id, handle: p.handle, display_name: p.display_name, avatar_url: p.avatar_url }
+      : null;
   };
 
   const createQueryBuilder = (table: string) => {
@@ -273,9 +445,10 @@ export function createMockSupabaseClient() {
           const match = conditionStr.match(/%([^%]+)%/);
           const q = match ? match[1].toLowerCase() : "";
           if (q) {
-            filters.push((r) =>
-              (r.handle?.toLowerCase() || "").includes(q) ||
-              (r.display_name?.toLowerCase() || "").includes(q)
+            filters.push(
+              (r) =>
+                (r.handle?.toLowerCase() || "").includes(q) ||
+                (r.display_name?.toLowerCase() || "").includes(q),
             );
           }
         }
@@ -398,13 +571,16 @@ export function createMockSupabaseClient() {
       },
       signInWithPassword: async ({ email }: { email: string; password?: string }) => {
         const profiles = getTable("profiles");
-        let profile = profiles.find((p) => p.handle === email.split("@")[0] || p.id === "u-current");
+        let profile = profiles.find(
+          (p) => p.handle === email.split("@")[0] || p.id === "u-current",
+        );
         if (!profile) {
           profile = {
             id: `u-${Date.now()}`,
             handle: email.split("@")[0] || "user",
             display_name: email.split("@")[0] || "Flick User",
-            avatar_url: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop",
+            avatar_url:
+              "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop",
             bio: "Exploring moments on Flick ✨",
             created_at: new Date().toISOString(),
           };
@@ -489,9 +665,10 @@ export function createMockSupabaseClient() {
         },
         getPublicUrl: (path: string) => ({
           data: {
-            publicUrl: path.startsWith("blob:") || path.startsWith("http")
-              ? path
-              : `https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&fit=crop`,
+            publicUrl:
+              path.startsWith("blob:") || path.startsWith("http")
+                ? path
+                : `https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800&fit=crop`,
           },
         }),
         createSignedUrl: async (path: string) => ({

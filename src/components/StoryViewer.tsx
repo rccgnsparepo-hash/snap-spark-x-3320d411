@@ -24,6 +24,7 @@ import {
   type StoryViewsData,
 } from "@/lib/storyViews";
 import { useAuth } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 
 const DEFAULT_SEGMENT_DURATION_MS = 5500;
 const REACTION_EMOJIS = ["🔥", "❤️", "😂", "😮", "👏"] as const;
@@ -298,6 +299,23 @@ export function StoryViewer({
     setTimeout(() => {
       setFloatingEmojis((prev) => prev.filter((item) => item.id !== id));
     }, 1400);
+
+    // Trigger fullstack notification for the story author
+    if (group?.author?.id) {
+      notify({
+        kind: "like",
+        title: `${actor.display_name} reacted to your story`,
+        message: `${emoji} reaction on your story flick`,
+        actor: {
+          id: actor.id,
+          display_name: actor.display_name,
+          handle: actor.handle,
+          avatar_url: actor.avatar_url,
+        },
+        recipients: [group.author.id],
+        url: "/",
+      });
+    }
   };
 
   return (

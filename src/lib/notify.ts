@@ -93,17 +93,6 @@ export async function notify(input: NotifyInput) {
                 ? `${who} just flicked`
                 : `${who} updated something`;
 
-    // Trigger instant iOS Notch notification in the app
-    triggerNotchNotification({
-      kind: input.kind,
-      title: input.title ?? fallbackTitle,
-      message: input.message,
-      url: input.url,
-      actor: input.actor,
-      data: input.data,
-    });
-    window.dispatchEvent(new Event("flick:notifications-updated"));
-
     // In-app inbox rows (only for known recipients, never the actor themselves).
     if (input.recipients?.length) {
       const actorId = input.actor?.id ?? null;
@@ -119,6 +108,70 @@ export async function notify(input: NotifyInput) {
           data: { ...(input.data ?? {}), dedupe_id: input.dedupe_id ?? null } as never,
         }));
       if (rows.length) await supabase.from("notifications").insert(rows);
+    }
+
+    // Determine if the local client should display the dynamic notch alert
+    let shouldShowNotchLocally = true;
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUserId = authData?.user?.id;
+      const actorId = input.actor?.id ?? null;
+
+      if (currentUserId && actorId && actorId === currentUserId) {
+        // If current user is the author/sender and recipients are others, don't self-alert
+        if (input.recipients?.length && !input.recipients.includes(currentUserId)) {
+          shouldShowNotchLocally = false;
+        }
+      }
+    } catch {}
+
+    if (shouldShowNotchLocally) {
+      triggerNotchNotification({
+        kind: input.kind,
+        title: input.title ?? fallbackTitle,
+        message: input.message,
+        url: input.url,
+        actor: input.actor,
+        data: input.data,
+      });
+      window.dispatchEvent(new Event("flick:notifications-updated"));
+
+      // Windows Desktop & System Toast Notifications
+      if (typeof window !== "undefined") {
+        const electronBridge = (window as unknown as {
+          electronAPI?: {
+            showNotification: (p: { title: string; body: string; url?: string; message?: string }) => void;
+            flashFrame: () => void;
+          };
+        }).electronAPI;
+
+        if (electronBridge?.showNotification) {
+          electronBridge.showNotification({
+            title: input.title ?? fallbackTitle,
+            body: input.message ?? "",
+            url: input.url,
+          });
+          electronBridge.flashFrame();
+        } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+          try {
+            const notif = new Notification(input.title ?? fallbackTitle, {
+              body: input.message ?? "",
+              icon: "/icon-192.png",
+              tag: input.dedupe_id || input.kind,
+            });
+            if (input.url) {
+              notif.onclick = () => {
+                window.focus();
+                window.dispatchEvent(
+                  new CustomEvent("flick:push-navigate", { detail: { url: input.url } })
+                );
+              };
+            }
+          } catch {
+            /* ignore sandbox or iframe security restrictions */
+          }
+        }
+      }
     }
     if (!navigator.onLine) {
       enqueue(input);

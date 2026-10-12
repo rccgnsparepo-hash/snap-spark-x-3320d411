@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 
-export type NotchStyle = "island" | "expanded" | "glow" | "live";
+export type NotchStyle = "island" | "expanded" | "glow" | "live" | "notch" | "minimal";
 
 export type NotchNotificationItem = {
   id: string;
@@ -38,7 +38,7 @@ const STYLE_STORAGE_KEY = "flick:notch-style";
 export function getStoredNotchStyle(): NotchStyle {
   try {
     const s = localStorage.getItem(STYLE_STORAGE_KEY) as NotchStyle;
-    if (s && ["island", "expanded", "glow", "live"].includes(s)) return s;
+    if (s && ["island", "expanded", "glow", "live", "notch", "minimal"].includes(s)) return s;
   } catch {}
   return "island";
 }
@@ -441,6 +441,97 @@ export function NotchNotification() {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* VARIANT 5: AUTHENTIC TOP IPHONE NOTCH EXTENSION */}
+            {style === "notch" && (
+              <div
+                onClick={handleClick}
+                className="bg-[#050507] text-white rounded-b-[32px] px-5 pt-1.5 pb-3 shadow-[0_15px_35px_rgba(0,0,0,0.8)] border-x border-b border-white/20 -mt-2 backdrop-blur-3xl min-w-[280px] max-w-sm"
+              >
+                {/* Physical iPhone Notch Speaker & Camera cutout accent */}
+                <div className="flex items-center justify-center gap-3 mb-2 opacity-50">
+                  <div className="w-12 h-1 rounded-full bg-white/30" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-white/20 ring-1 ring-white/10" />
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    <Avatar
+                      url={current.actor?.avatar_url}
+                      name={current.actor?.display_name || "User"}
+                      size={34}
+                    />
+                    <div className="absolute -bottom-1 -right-1 bg-black rounded-full p-0.5 border border-white/20">
+                      {getKindIcon(current.kind)}
+                    </div>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-xs leading-none truncate text-white">
+                        {current.title}
+                      </span>
+                      <span className="text-[9px] font-mono uppercase text-snap tracking-wider">
+                        iOS Notch
+                      </span>
+                    </div>
+                    {current.message && (
+                      <p className="text-[11px] text-white/70 truncate mt-1 leading-snug">
+                        {current.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-black bg-snap px-2 py-0.5 rounded-full">
+                      Open
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dismiss();
+                      }}
+                      className="p-1 text-white/40 hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* VARIANT 6: MINIMAL SLIM CAPSULE */}
+            {style === "minimal" && (
+              <div
+                onClick={handleClick}
+                className="bg-[#09090b]/95 text-white rounded-full py-1.5 px-3 shadow-2xl border border-white/20 backdrop-blur-2xl flex items-center gap-2.5 hover:border-snap/40 transition"
+              >
+                <div className="relative shrink-0">
+                  <Avatar
+                    url={current.actor?.avatar_url}
+                    name={current.actor?.display_name || "User"}
+                    size={24}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="font-semibold text-xs text-white truncate block max-w-[200px]">
+                    {current.title}
+                  </span>
+                </div>
+                <span className="w-1.5 h-1.5 rounded-full bg-snap animate-ping shrink-0" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dismiss();
+                  }}
+                  className="text-white/40 hover:text-white p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
               </div>
             )}
           </motion.div>

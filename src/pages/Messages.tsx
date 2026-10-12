@@ -18,61 +18,104 @@ export default function MessagesPage() {
   const loadUnread = async () => {
     if (!user) return;
     const now = new Date().toISOString();
-    const { data } = await supabase.from("messages").select("sender_id, read_at")
-      .eq("recipient_id", user.id).is("read_at", null)
+    const { data } = await supabase
+      .from("messages")
+      .select("sender_id, read_at")
+      .eq("recipient_id", user.id)
+      .is("read_at", null)
       .or(`expires_at.is.null,expires_at.gt.${now}`);
     const counts: Record<string, number> = {};
-    (data ?? []).forEach((m: { sender_id: string }) => { counts[m.sender_id] = (counts[m.sender_id] ?? 0) + 1; });
+    (data ?? []).forEach((m: { sender_id: string }) => {
+      counts[m.sender_id] = (counts[m.sender_id] ?? 0) + 1;
+    });
     setUnread(counts);
   };
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("*").neq("id", user.id).limit(100).then(({ data }) => setPeople((data ?? []) as Profile[]));
+    supabase
+      .from("profiles")
+      .select("*")
+      .neq("id", user.id)
+      .limit(100)
+      .then(({ data }) => setPeople((data ?? []) as Profile[]));
     loadUnread();
-    const ch = supabase.channel(`dm-unread-${user.id}`).on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadUnread).subscribe();
+    const ch = supabase
+      .channel(`dm-unread-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, loadUnread)
+      .subscribe();
     const cull = setInterval(loadUnread, 30000);
-    return () => { supabase.removeChannel(ch); clearInterval(cull); };
+    return () => {
+      supabase.removeChannel(ch);
+      clearInterval(cull);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  const filtered = people.filter((p) => !q || p.handle.toLowerCase().includes(q.toLowerCase()) || p.display_name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = people.filter(
+    (p) =>
+      !q ||
+      p.handle.toLowerCase().includes(q.toLowerCase()) ||
+      p.display_name.toLowerCase().includes(q.toLowerCase()),
+  );
 
   return (
     <div className="grid lg:grid-cols-[300px_minmax(0,1fr)] h-full min-w-0 overflow-hidden">
-      <aside className={`${showList ? "block" : "hidden lg:block"} border-r border-border bg-background pb-28 lg:pb-0 overflow-y-auto min-w-0 min-h-0`}>
-        <header className="sticky top-0 bg-background/80 backdrop-blur border-b border-border p-4">
-          <h1 className="font-display text-2xl mb-3">DMs</h1>
+      <aside
+        className={`${showList ? "block" : "hidden lg:block"} border-r border-border bg-background pb-28 lg:pb-0 overflow-y-auto min-w-0 min-h-0`}
+      >
+        <header className="sticky top-0 bg-background/90 backdrop-blur-xl border-b border-border p-4 space-y-3 z-10">
+          <div className="flex items-center justify-between">
+            <h1 className="font-display text-2xl">DMs</h1>
+          </div>
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by handle"
-              className="w-full bg-input rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search by handle or name"
+              className="w-full bg-secondary rounded-full pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-snap"
+            />
           </div>
-          <p className="text-[11px] mt-2 text-snap">Realtime conversations</p>
+          <p className="text-[11px] text-snap font-medium">Realtime conversations · Disappearing chats</p>
         </header>
         <ul>
           {filtered.map((p) => (
             <li key={p.id}>
-              <Link to={`/messages/${p.id}`} onClick={() => setUnread((u) => ({ ...u, [p.id]: 0 }))}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 border-b border-border">
-                <Avatar url={p.avatar_url} name={p.display_name} size={44} />
+              <Link
+                to={`/messages/${p.id}`}
+                onClick={() => setUnread((u) => ({ ...u, [p.id]: 0 }))}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 border-b border-border transition"
+              >
+                <div className="relative shrink-0">
+                  <Avatar url={p.avatar_url} name={p.display_name} size={44} />
+                  <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-background" />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold truncate">{p.display_name}</div>
+                  <div className="font-semibold text-sm truncate">{p.display_name}</div>
                   <div className="text-xs text-muted-foreground truncate">@{p.handle}</div>
                 </div>
-                {unread[p.id] > 0 && <span className="bg-snap text-snap-foreground text-xs font-bold rounded-full px-2 py-0.5">{unread[p.id]}</span>}
+                {unread[p.id] > 0 && (
+                  <span className="bg-snap text-snap-foreground text-xs font-bold rounded-full px-2 py-0.5 shadow-sm">
+                    {unread[p.id]}
+                  </span>
+                )}
               </Link>
             </li>
           ))}
         </ul>
       </aside>
-      <section className={`${showList ? "hidden lg:block" : "block"} min-w-0 min-h-0 overflow-hidden`}>
+      <section
+        className={`${showList ? "hidden lg:block" : "block"} min-w-0 min-h-0 overflow-hidden`}
+      >
         {pathname === "/messages" ? (
           <div className="hidden lg:flex flex-col items-center justify-center h-full text-muted-foreground gap-3 p-10">
             <MessageCircle className="w-12 h-12 text-snap" />
             <p>Pick someone to start a disappearing chat.</p>
           </div>
-        ) : <Outlet />}
+        ) : (
+          <Outlet />
+        )}
       </section>
     </div>
   );

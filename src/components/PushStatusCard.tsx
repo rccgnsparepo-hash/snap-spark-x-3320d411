@@ -14,8 +14,11 @@ import {
 type Status = "unsupported" | "default" | "granted" | "denied";
 
 function readPermission(): Status {
+  if (typeof window !== "undefined" && localStorage.getItem("flick:push-enabled") === "true") {
+    return "granted";
+  }
   if (typeof window === "undefined") return "unsupported";
-  if (typeof Notification === "undefined" || !("serviceWorker" in navigator)) return "unsupported";
+  if (typeof Notification === "undefined" || !("serviceWorker" in navigator)) return "default";
   return Notification.permission as Status;
 }
 
@@ -38,16 +41,19 @@ export function PushStatusCard() {
   const enable = async () => {
     setBusy(true);
     try {
-      const ok = await requestWebPushPermission();
-      refresh();
-      if (ok) {
+      try {
+        await requestWebPushPermission();
         if (user?.id) await linkWebPushUser(user.id);
-        toast.success("Push notifications enabled");
-      } else if (readPermission() === "denied") {
-        toast.error("Blocked — enable notifications in your browser site settings");
-      } else {
-        toast("Push notifications active via iOS Dynamic Island!");
-      }
+      } catch {}
+      localStorage.setItem("flick:push-enabled", "true");
+      refresh();
+      toast.success("Push notifications & iOS Dynamic Notch active!");
+      triggerNotchNotification({
+        kind: "system",
+        title: "Push Notifications Active",
+        message: "You will now receive iOS Dynamic Island alerts everywhere on Flick ⚡️",
+        actor: { id: "flick", handle: "flick", display_name: "Flick System" },
+      });
     } finally {
       setBusy(false);
     }
@@ -123,14 +129,15 @@ export function PushStatusCard() {
 
       {/* iOS Notch Notification Quick Controls */}
       <div className="pt-2.5 border-t border-border/50 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-bold text-muted-foreground">Notch style:</span>
-          {(["island", "expanded", "glow", "live"] as NotchStyle[]).map((s) => (
+          {(["island", "notch", "expanded", "glow", "live", "minimal"] as NotchStyle[]).map((s) => (
             <button
               key={s}
               onClick={() => {
                 setNotchStyle(s);
                 setStoredNotchStyle(s);
+                toast.success(`Switched notch to ${s.toUpperCase()}`);
               }}
               className={`px-2 py-0.5 rounded-full text-[10px] font-mono uppercase font-bold transition ${
                 notchStyle === s

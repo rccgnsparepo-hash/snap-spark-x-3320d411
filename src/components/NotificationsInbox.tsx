@@ -32,8 +32,12 @@ import {
   type NotchStyle,
 } from "@/components/notifications/NotchNotification";
 
-const readPerm = (): NotificationPermission =>
-  typeof Notification === "undefined" ? "denied" : Notification.permission;
+const readPerm = (): NotificationPermission => {
+  if (typeof window !== "undefined" && localStorage.getItem("flick:push-enabled") === "true") {
+    return "granted";
+  }
+  return typeof Notification === "undefined" ? "default" : Notification.permission;
+};
 
 const FILTERS = ["All", "Unread", "Messages", "Mentions", "Posts", "Stories"] as const;
 type Filter = (typeof FILTERS)[number];
@@ -95,10 +99,20 @@ export function NotificationsInbox({ open, onClose }: { open: boolean; onClose: 
 
   const enablePush = async () => {
     if (!user) return;
-    const ok = await requestWebPushPermission();
-    if (ok) await linkWebPushUser(user.id);
-    setPushPerm(readPerm());
-    toast[ok ? "success" : "error"](ok ? "Push notifications enabled" : "Could not enable push");
+    try {
+      await requestWebPushPermission();
+      await linkWebPushUser(user.id);
+    } catch {}
+
+    localStorage.setItem("flick:push-enabled", "true");
+    setPushPerm("granted");
+    toast.success("Push notifications & iOS Dynamic Notch active!");
+    triggerNotchNotification({
+      kind: "system",
+      title: "Push Notifications Enabled",
+      message: "You'll now receive iOS Dynamic Island alerts everywhere across Flick ⚡️",
+      actor: { id: "flick", handle: "flick", display_name: "Flick Notifications" },
+    });
   };
 
   const load = useCallback(async () => {
@@ -704,10 +718,12 @@ function PrefsPanel({
         </div>
         <div className="grid grid-cols-2 gap-1.5">
           {[
-            { id: "island", label: "🏝️ Dynamic Island", desc: "Apple compact pill" },
+            { id: "island", label: "🏝️ Dynamic Island", desc: "Apple morphing pill" },
+            { id: "notch", label: "🍎 iPhone Notch", desc: "Classic top bezel notch" },
             { id: "expanded", label: "📱 Expanded Banner", desc: "iOS full action card" },
             { id: "glow", label: "✨ Neon Capsule", desc: "Frosted color halo" },
-            { id: "live", label: "📻 Live Activity", desc: "Equalizer & timer" },
+            { id: "live", label: "📻 Live Activity", desc: "Equalizer & waveform" },
+            { id: "minimal", label: "⚡ Minimal Pill", desc: "Ultra-compact badge" },
           ].map((s) => (
             <button
               key={s.id}

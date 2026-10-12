@@ -1,4 +1,16 @@
-import { Heart, MessageCircle, Repeat2, Send, X, Share2, Download, MoreHorizontal, Volume2, VolumeX, Play } from "lucide-react";
+import {
+  Heart,
+  MessageCircle,
+  Repeat2,
+  Send,
+  X,
+  Share2,
+  Download,
+  MoreHorizontal,
+  Volume2,
+  VolumeX,
+  Play,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -20,13 +32,22 @@ async function directDownload(url: string, name: string) {
     const blob = await res.blob();
     const obj = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = obj; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    a.href = obj;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(obj), 2000);
   } catch {
     // Fallback: anchor download
     const a = document.createElement("a");
-    a.href = url; a.download = name; a.target = "_blank"; a.rel = "noreferrer";
-    document.body.appendChild(a); a.click(); a.remove();
+    a.href = url;
+    a.download = name;
+    a.target = "_blank";
+    a.rel = "noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     toast.message("Saving…");
   }
 }
@@ -42,11 +63,15 @@ export type PostRow = {
 };
 
 type Comment = {
-  id: string; content: string; created_at: string; author_id: string;
+  id: string;
+  content: string;
+  created_at: string;
+  author_id: string;
   author: { handle: string; display_name: string; avatar_url: string | null } | null;
 };
 
-const COMMENT_SELECT = "id, content, created_at, author_id, author:profiles!comments_author_id_fkey (handle, display_name, avatar_url)";
+const COMMENT_SELECT =
+  "id, content, created_at, author_id, author:profiles!comments_author_id_fkey (handle, display_name, avatar_url)";
 
 export function PostCard({ post }: { post: PostRow }) {
   const { user } = useAuth();
@@ -65,8 +90,15 @@ export function PostCard({ post }: { post: PostRow }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const toggleVideo = () => {
-    const v = videoRef.current; if (!v) return;
-    if (v.paused) { v.play(); setPlaying(true); } else { v.pause(); setPlaying(false); }
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      v.play();
+      setPlaying(true);
+    } else {
+      v.pause();
+      setPlaying(false);
+    }
   };
 
   const refreshCounts = async () => {
@@ -84,28 +116,54 @@ export function PostCard({ post }: { post: PostRow }) {
 
   useEffect(() => {
     refreshCounts();
-    const ch = supabase.channel(`post-${post.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "likes", filter: `post_id=eq.${post.id}` }, refreshCounts)
-      .on("postgres_changes", { event: "*", schema: "public", table: "reshares", filter: `post_id=eq.${post.id}` }, refreshCounts)
-      .on("postgres_changes", { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${post.id}` }, refreshCounts)
+    const ch = supabase
+      .channel(`post-${post.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "likes", filter: `post_id=eq.${post.id}` },
+        refreshCounts,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reshares", filter: `post_id=eq.${post.id}` },
+        refreshCounts,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${post.id}` },
+        refreshCounts,
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [post.id, user?.id]);
 
   const toggleLike = async () => {
     if (!user) return;
     if (liked) {
-      setLiked(false); setLikeCount((c) => c - 1);
+      setLiked(false);
+      setLikeCount((c) => c - 1);
       await supabase.from("likes").delete().eq("user_id", user.id).eq("post_id", post.id);
     } else {
-      setLiked(true); setLikeCount((c) => c + 1);
+      setLiked(true);
+      setLikeCount((c) => c + 1);
       await supabase.from("likes").insert({ user_id: user.id, post_id: post.id });
       if (post.author?.id && post.author.id !== user.id) {
         notify({
-          kind: "like", message: post.content?.slice(0, 80) ?? "",
-          actor: { id: user.id }, data: { post_id: post.id },
-          recipients: [post.author.id], url: `/u/${post.author.handle}`,
+          kind: "like",
+          title: `${profile?.display_name || "Someone"} liked your flick`,
+          message: post.content?.slice(0, 80) ?? "Your flick received a like reaction",
+          actor: {
+            id: user.id,
+            display_name: profile?.display_name || "User",
+            handle: profile?.handle || "user",
+            avatar_url: profile?.avatar_url || null,
+          },
+          data: { post_id: post.id },
+          recipients: [post.author.id],
+          url: `/u/${post.author.handle}`,
         });
       }
     }
@@ -114,17 +172,23 @@ export function PostCard({ post }: { post: PostRow }) {
   const toggleReshare = async () => {
     if (!user) return;
     if (reshared) {
-      setReshared(false); setReshareCount((c) => c - 1);
+      setReshared(false);
+      setReshareCount((c) => c - 1);
       await supabase.from("reshares").delete().eq("user_id", user.id).eq("post_id", post.id);
     } else {
-      setReshared(true); setReshareCount((c) => c + 1);
+      setReshared(true);
+      setReshareCount((c) => c + 1);
       await supabase.from("reshares").insert({ user_id: user.id, post_id: post.id });
     }
   };
 
   const openComments = async () => {
     setShowComments(true);
-    const { data } = await supabase.from("comments").select(COMMENT_SELECT).eq("post_id", post.id).order("created_at", { ascending: true });
+    const { data } = await supabase
+      .from("comments")
+      .select(COMMENT_SELECT)
+      .eq("post_id", post.id)
+      .order("created_at", { ascending: true });
     setComments((data ?? []) as unknown as Comment[]);
   };
 
@@ -135,12 +199,25 @@ export function PostCard({ post }: { post: PostRow }) {
     await supabase.from("comments").insert({ post_id: post.id, author_id: user.id, content: c });
     if (post.author?.id && post.author.id !== user.id) {
       notify({
-        kind: "comment", message: c.slice(0, 100),
-        actor: { id: user.id }, data: { post_id: post.id },
-        recipients: [post.author.id], url: `/u/${post.author.handle}`,
+        kind: "comment",
+        title: `${profile?.display_name || "Someone"} commented on your flick`,
+        message: c.slice(0, 100),
+        actor: {
+          id: user.id,
+          display_name: profile?.display_name || "User",
+          handle: profile?.handle || "user",
+          avatar_url: profile?.avatar_url || null,
+        },
+        data: { post_id: post.id },
+        recipients: [post.author.id],
+        url: `/u/${post.author.handle}`,
       });
     }
-    const { data } = await supabase.from("comments").select(COMMENT_SELECT).eq("post_id", post.id).order("created_at", { ascending: true });
+    const { data } = await supabase
+      .from("comments")
+      .select(COMMENT_SELECT)
+      .eq("post_id", post.id)
+      .order("created_at", { ascending: true });
     setComments((data ?? []) as unknown as Comment[]);
   };
 
@@ -149,91 +226,159 @@ export function PostCard({ post }: { post: PostRow }) {
 
   return (
     <>
-    <motion.article
-      layout
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: "spring", stiffness: 260, damping: 26 }}
-      whileHover={{ y: -2 }}
-      className="px-4 py-3 border-b border-border hover:bg-secondary/20 transition flex gap-3"
-    >
-      <Link to={post.author?.handle ? `/u/${post.author.handle}` : "#"} onClick={(e) => e.stopPropagation()} className="shrink-0">
-        <Avatar url={post.author?.avatar_url} name={post.author?.display_name} size={44} />
-      </Link>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 text-sm">
-          <Link to={post.author?.handle ? `/u/${post.author.handle}` : "#"} className="font-bold truncate hover:underline">
-            {post.author?.display_name ?? "Unknown"}
-          </Link>
-          <span className="text-muted-foreground truncate">@{post.author?.handle}</span>
-          <span className="text-muted-foreground">·</span>
-          <span className="text-muted-foreground">{formatDistanceToNowStrict(new Date(post.created_at))}</span>
-          <button onClick={() => setActionsOpen(true)} className="ml-auto p-1 text-muted-foreground hover:text-foreground" aria-label="More">
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-        </div>
-        {post.content && <p className="mt-1 whitespace-pre-wrap break-anywhere">{post.content}</p>}
-        {mediaSrc && (
-          <div className="mt-3 relative group">
-            {post.media_type === "video" && (
-              <div className="relative" onClick={(e) => { e.preventDefault(); toggleVideo(); }}>
-                <video
-                  ref={videoRef}
-                  src={mediaSrc}
-                  autoPlay muted={muted} loop playsInline
-                  className="rounded-2xl border border-border max-h-[520px] w-full bg-black no-controls"
-                  onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-                />
-                {!playing && (
-                  <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                    <div className="bg-black/50 rounded-full p-4 backdrop-blur"><Play className="w-8 h-8 text-white" /></div>
-                  </div>
-                )}
-                <button onClick={(e) => { e.stopPropagation(); setMuted(m => !m); }}
-                  className="absolute bottom-2 right-2 bg-background/80 backdrop-blur rounded-full p-2 border border-border"
-                  aria-label={muted ? "Unmute" : "Mute"}>
-                  {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </button>
-              </div>
-            )}
-            {post.media_type === "audio" && (
-              <div className="rounded-2xl border border-border bg-card p-3">
-                <VoiceMessage src={mediaSrc} />
-              </div>
-            )}
-            {(post.media_type === "image" || (!post.media_type && post.image_url)) && (
-              <img src={mediaSrc} alt="" className="rounded-2xl border border-border max-h-[520px] w-full object-cover" loading="lazy" />
-            )}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); e.preventDefault(); directDownload(mediaSrc, dlName); }}
-              className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition bg-background/80 backdrop-blur rounded-full p-2 border border-border"
-              aria-label="Download"
+      <motion.article
+        layout
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 26 }}
+        whileHover={{ y: -2 }}
+        className="px-4 py-3 border-b border-border hover:bg-secondary/20 transition flex gap-3"
+      >
+        <Link
+          to={post.author?.handle ? `/u/${post.author.handle}` : "#"}
+          onClick={(e) => e.stopPropagation()}
+          className="shrink-0"
+        >
+          <Avatar url={post.author?.avatar_url} name={post.author?.display_name} size={44} />
+        </Link>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-sm">
+            <Link
+              to={post.author?.handle ? `/u/${post.author.handle}` : "#"}
+              className="font-bold truncate hover:underline"
             >
-              <Download className="w-4 h-4" />
+              {post.author?.display_name ?? "Unknown"}
+            </Link>
+            <span className="text-muted-foreground truncate">@{post.author?.handle}</span>
+            <span className="text-muted-foreground">·</span>
+            <span className="text-muted-foreground">
+              {formatDistanceToNowStrict(new Date(post.created_at))}
+            </span>
+            <button
+              onClick={() => setActionsOpen(true)}
+              className="ml-auto p-1 text-muted-foreground hover:text-foreground"
+              aria-label="More"
+            >
+              <MoreHorizontal className="w-4 h-4" />
             </button>
           </div>
-        )}
-        <div className="flex items-center gap-6 mt-3 text-muted-foreground text-sm flex-wrap">
-          <button onClick={() => { if (showComments) setShowComments(false); else openComments(); }} className="flex items-center gap-1.5 hover:text-primary transition">
-            <MessageCircle className="w-4 h-4" /> {commentCount > 0 && commentCount}
-          </button>
-          <button onClick={toggleReshare} className={`flex items-center gap-1.5 transition ${reshared ? "text-emerald-400" : "hover:text-emerald-400"}`}>
-            <Repeat2 className="w-4 h-4" /> {reshareCount > 0 && reshareCount}
-          </button>
-          <button onClick={toggleLike} className={`flex items-center gap-1.5 transition ${liked ? "text-rose-500" : "hover:text-rose-500"}`}>
-            <Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} /> {likeCount > 0 && likeCount}
-          </button>
-          <Reactions postId={post.id} />
-          <button onClick={() => setShareOpen(true)} className="flex items-center gap-1.5 hover:text-snap transition ml-auto">
-            <Share2 className="w-4 h-4" />
-          </button>
+          {post.content && (
+            <p className="mt-1 whitespace-pre-wrap break-anywhere">{post.content}</p>
+          )}
+          {mediaSrc && (
+            <div className="mt-3 relative group">
+              {post.media_type === "video" && (
+                <div
+                  className="relative"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleVideo();
+                  }}
+                >
+                  <video
+                    ref={videoRef}
+                    src={mediaSrc}
+                    autoPlay
+                    muted={muted}
+                    loop
+                    playsInline
+                    className="rounded-2xl border border-border max-h-[520px] w-full bg-black no-controls"
+                    onPlay={() => setPlaying(true)}
+                    onPause={() => setPlaying(false)}
+                  />
+                  {!playing && (
+                    <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                      <div className="bg-black/50 rounded-full p-4 backdrop-blur">
+                        <Play className="w-8 h-8 text-white" />
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMuted((m) => !m);
+                    }}
+                    className="absolute bottom-2 right-2 bg-background/80 backdrop-blur rounded-full p-2 border border-border"
+                    aria-label={muted ? "Unmute" : "Mute"}
+                  >
+                    {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </button>
+                </div>
+              )}
+              {post.media_type === "audio" && (
+                <div className="rounded-2xl border border-border bg-card p-3">
+                  <VoiceMessage src={mediaSrc} />
+                </div>
+              )}
+              {(post.media_type === "image" || (!post.media_type && post.image_url)) && (
+                <img
+                  src={mediaSrc}
+                  alt=""
+                  className="rounded-2xl border border-border max-h-[520px] w-full object-cover"
+                  loading="lazy"
+                />
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  directDownload(mediaSrc, dlName);
+                }}
+                className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition bg-background/80 backdrop-blur rounded-full p-2 border border-border"
+                aria-label="Download"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-6 mt-3 text-muted-foreground text-sm flex-wrap">
+            <button
+              onClick={() => {
+                if (showComments) setShowComments(false);
+                else openComments();
+              }}
+              className="flex items-center gap-1.5 hover:text-primary transition"
+            >
+              <MessageCircle className="w-4 h-4" /> {commentCount > 0 && commentCount}
+            </button>
+            <button
+              onClick={toggleReshare}
+              className={`flex items-center gap-1.5 transition ${reshared ? "text-emerald-400" : "hover:text-emerald-400"}`}
+            >
+              <Repeat2 className="w-4 h-4" /> {reshareCount > 0 && reshareCount}
+            </button>
+            <button
+              onClick={toggleLike}
+              className={`flex items-center gap-1.5 transition ${liked ? "text-rose-500" : "hover:text-rose-500"}`}
+            >
+              <Heart className={`w-4 h-4 ${liked ? "fill-current" : ""}`} />{" "}
+              {likeCount > 0 && likeCount}
+            </button>
+            <Reactions postId={post.id} />
+            <button
+              onClick={() => setShareOpen(true)}
+              className="flex items-center gap-1.5 hover:text-snap transition ml-auto"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
-      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} postId={post.id} postPreview={post.content || "Check this flick"} />
-      <PostActions postId={post.id} mediaUrl={mediaSrc} open={actionsOpen} onClose={() => setActionsOpen(false)} onShare={() => setShareOpen(true)} />
-    </motion.article>
-    <AnimatePresence>
+        <ShareSheet
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          postId={post.id}
+          postPreview={post.content || "Check this flick"}
+        />
+        <PostActions
+          postId={post.id}
+          mediaUrl={mediaSrc}
+          open={actionsOpen}
+          onClose={() => setActionsOpen(false)}
+          onShare={() => setShareOpen(true)}
+        />
+      </motion.article>
+      <AnimatePresence>
         {showComments && (
           <CommentSheet
             comments={comments}
@@ -248,35 +393,80 @@ export function PostCard({ post }: { post: PostRow }) {
   );
 }
 
-function CommentSheet({ comments, draft, setDraft, onSend, onClose }: { comments: Comment[]; draft: string; setDraft: (s: string) => void; onSend: () => void; onClose: () => void }) {
+function CommentSheet({
+  comments,
+  draft,
+  setDraft,
+  onSend,
+  onClose,
+}: {
+  comments: Comment[];
+  draft: string;
+  setDraft: (s: string) => void;
+  onSend: () => void;
+  onClose: () => void;
+}) {
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end md:items-center justify-center p-0 md:p-6">
-      <motion.div initial={{ y: 30 }} animate={{ y: 0 }} exit={{ y: 30 }} onClick={(e) => e.stopPropagation()}
-        className="w-full md:max-w-md bg-card rounded-t-3xl md:rounded-3xl border border-border max-h-[80vh] flex flex-col">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-end md:items-center justify-center p-0 md:p-6"
+    >
+      <motion.div
+        initial={{ y: 30 }}
+        animate={{ y: 0 }}
+        exit={{ y: 30 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full md:max-w-md bg-card rounded-t-3xl md:rounded-3xl border border-border max-h-[80vh] flex flex-col"
+      >
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="font-semibold">Comments</h3>
-          <button onClick={onClose}><X className="w-5 h-5" /></button>
+          <button onClick={onClose}>
+            <X className="w-5 h-5" />
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {comments.length === 0 && <p className="text-center text-muted-foreground text-sm">No comments yet.</p>}
-                {comments.map((c) => (
-                  <div key={c.id} className="flex gap-2.5 text-sm">
-                    <Avatar url={c.author?.avatar_url} name={c.author?.display_name} size={32} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold truncate">{c.author?.display_name ?? "User"}</span>
-                        <span className="text-muted-foreground text-xs">@{c.author?.handle}</span>
-                        <span className="text-muted-foreground text-xs">· {formatDistanceToNowStrict(new Date(c.created_at))}</span>
-                      </div>
-                      <p className="break-words">{c.content}</p>
-                    </div>
-                  </div>
-                ))}
+          {comments.length === 0 && (
+            <p className="text-center text-muted-foreground text-sm">No comments yet.</p>
+          )}
+          {comments.map((c) => (
+            <div key={c.id} className="flex gap-2.5 text-sm">
+              <Avatar url={c.author?.avatar_url} name={c.author?.display_name} size={32} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold truncate">{c.author?.display_name ?? "User"}</span>
+                  <span className="text-muted-foreground text-xs">@{c.author?.handle}</span>
+                  <span className="text-muted-foreground text-xs">
+                    · {formatDistanceToNowStrict(new Date(c.created_at))}
+                  </span>
+                </div>
+                <p className="break-words">{c.content}</p>
+              </div>
+            </div>
+          ))}
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); onSend(); }} className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-border flex gap-2">
-                <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Add a comment…" className="flex-1 bg-input rounded-full px-4 py-2 focus:outline-none" />
-                <button type="submit" disabled={!draft.trim()} className="w-10 h-10 rounded-full bg-snap text-snap-foreground grid place-items-center disabled:opacity-50"><Send className="w-4 h-4" /></button>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSend();
+          }}
+          className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-border flex gap-2"
+        >
+          <input
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Add a comment…"
+            className="flex-1 bg-input rounded-full px-4 py-2 focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={!draft.trim()}
+            className="w-10 h-10 rounded-full bg-snap text-snap-foreground grid place-items-center disabled:opacity-50"
+          >
+            <Send className="w-4 h-4" />
+          </button>
         </form>
       </motion.div>
     </motion.div>
