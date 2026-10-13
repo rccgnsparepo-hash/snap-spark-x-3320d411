@@ -3,6 +3,7 @@
   "appId": "com.faratech.faraflick",
   "productName": "Flick",
   "copyright": "Copyright © 2026 Flick",
+  "publish": null,
   "directories": {
     "output": "release"
   },
